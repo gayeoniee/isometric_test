@@ -173,6 +173,9 @@ private fun RoomSection(
             // 톡 누르면 방향 돌리기. 치우기는 "방 밖으로 끌어내기"로 분리했다 —
             // 탭 하나에 두 가지 뜻을 담으면 헷갈리고, 실수로 사라지면 곤란하다.
             onItemTap = { item -> state.rotate(item.instanceId) },
+            // 문이 활짝 열린 순간. 산책 게임 화면이 생기면 여기서 넘기면 된다.
+            // (CONTEXT.md 4번: 미니룸(홈) -> [방문 클릭] -> 산책 게임)
+            onDoorOpened = {},
         )
         TodayCard(
             dateLabel = dateLabel,

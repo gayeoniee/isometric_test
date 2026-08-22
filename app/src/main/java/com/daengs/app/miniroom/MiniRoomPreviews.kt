@@ -43,6 +43,21 @@ private fun MiniRoomCanvasPreview() {
     }
 }
 
+/** 문이 반쯤 열린 상태. 무한 애니메이션은 미리보기에서 안 돌아서 값을 찍어준다. */
+@Preview(widthDp = 411, heightDp = 380, showBackground = true, backgroundColor = 0xFFFDF1EC)
+@Composable
+private fun MiniRoomDoorOpenPreview() {
+    DaengsTheme {
+        MiniRoomCanvas(
+            state = rememberMiniRoomState(),
+            catalog = rememberItemCatalog(),
+            modifier = Modifier.fillMaxWidth().aspectRatio(RoomSpec.ASPECT),
+            frameTimeMs = 400L,
+            doorOpenOverride = 0.55f,
+        )
+    }
+}
+
 @Preview(widthDp = 320, heightDp = 320, showBackground = true, backgroundColor = 0xFFFDF1EC)
 @Composable
 private fun MiniRoomCanvasSmallPreview() {

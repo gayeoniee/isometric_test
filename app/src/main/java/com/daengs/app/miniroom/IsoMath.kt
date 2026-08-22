@@ -111,6 +111,18 @@ data class RoomGeometry(
     fun footprintCenter(col: Int, row: Int, footprint: IntSize): Offset =
         toScreenF(col + footprint.width / 2f, row + footprint.height / 2f)
 
+    /**
+     * 화면 좌표 → 왼쪽 벽 평면. [leftWallPoint] 의 역함수.
+     *
+     * u = 벽을 따라간 거리(격자 단위, 0 이 안쪽 모서리), h = 바닥에서 올라간 높이(px).
+     * 벽에 붙은 것(문·창문)을 눌렀는지 판정할 때 쓴다.
+     */
+    fun toLeftWall(pos: Offset): Pair<Float, Float> {
+        val u = (origin.x - pos.x) / (tw / 2f)
+        val h = origin.y + u * th / 2f - pos.y
+        return u to h
+    }
+
     /** 격자 밖으로 나갔는지 — 반드시 실수값으로 검사한다. */
     fun isInside(colF: Float, rowF: Float): Boolean =
         colF >= 0f && rowF >= 0f && colF < RoomSpec.GRID && rowF < RoomSpec.GRID
