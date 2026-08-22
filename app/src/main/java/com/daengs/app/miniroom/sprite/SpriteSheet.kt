@@ -21,6 +21,8 @@ data class SpriteSheet(
     val columns: Int,
     val frameCount: Int,
     val fps: Int = 8,
+    /** 축소 보간 방식. 픽셀 아트면 [FilterQuality.None], 부드러운 아트면 보간. */
+    val filterQuality: FilterQuality = FilterQuality.Medium,
 ) {
     fun srcOffset(frame: Int): IntOffset {
         val i = frame.coerceIn(0, frameCount - 1)
@@ -58,9 +60,9 @@ fun DrawScope.drawSpriteFrame(
             dstOffset = IntOffset.Zero,
             dstSize = IntSize(dstSize.width.roundToInt(), dstSize.height.roundToInt()),
             alpha = alpha,
-            // 기본값은 FilterQuality.Low(bilinear). scale 이 1.0 인 경우가 사실상 없으므로
-            // 명시하지 않으면 픽셀 아트가 전부 뭉개진다.
-            filterQuality = FilterQuality.None,
+            // scale 이 1.0 인 경우가 사실상 없으므로 보간 방식이 눈에 그대로 드러난다.
+            // 에셋마다 다르므로 SpriteSheet 가 들고 있는 값을 쓴다.
+            filterQuality = sheet.filterQuality,
         )
     }
 }

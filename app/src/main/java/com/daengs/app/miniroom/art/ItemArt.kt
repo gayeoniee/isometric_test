@@ -5,6 +5,7 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.unit.IntSize
@@ -67,6 +68,12 @@ sealed interface ItemArtSpec {
         override val box: ArtBox,
         override val movable: Boolean = true,
         @param:DrawableRes val resId: Int,
+        /**
+         * 축소 보간 방식. 소스를 기본단위의 4배로 저작하므로 화면에서는 **항상 축소**된다.
+         * 부드러운 아트에 [FilterQuality.None](최근접 이웃)을 쓰면 계단·깜빡임이 생기고,
+         * 반대로 픽셀 아트에 보간을 쓰면 뭉개진다. 그래서 아이템별로 고른다.
+         */
+        val filterQuality: FilterQuality = FilterQuality.Medium,
     ) : ItemArtSpec
 
     /** 스프라이트 시트 PNG. resId = 0 이면 아직 에셋이 없다는 뜻 → fallback 사용. */
@@ -80,6 +87,7 @@ sealed interface ItemArtSpec {
         val columns: Int,
         val frameCount: Int,
         val fps: Int = 8,
+        val filterQuality: FilterQuality = FilterQuality.Medium,
         val fallback: DrawScope.(frame: Int) -> Unit,
     ) : ItemArtSpec
 }
@@ -102,6 +110,7 @@ sealed interface ItemArt {
         override val box: ArtBox,
         override val movable: Boolean,
         val image: ImageBitmap,
+        val filterQuality: FilterQuality = FilterQuality.Medium,
     ) : ItemArt
 
     @Immutable

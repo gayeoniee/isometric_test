@@ -7,8 +7,10 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.res.imageResource
+import com.daengs.app.R
 import com.daengs.app.miniroom.RoomDefaults
 import com.daengs.app.miniroom.sprite.SpriteSheet
+import com.daengs.app.ui.theme.RoomPalette
 
 @Immutable
 class ItemCatalog(private val map: Map<String, ItemArt>) {
@@ -81,6 +83,29 @@ val ItemSpecs: Map<String, ItemArtSpec> = mapOf(
         ArtBox(size = Size(72f, 40f), anchor = Offset(36f, 20f), flat = true),
     ) { drawBlanket() },
 
+    // --- 에셋 파이프라인 검증용 (실제 PNG 를 쓰는 유일한 아이템들) ---
+    // crate 는 toybox 와 ArtBox 가 **완전히 동일**하다. 나란히 놓고 발밑이 어긋나면
+    // PNG 경로에 문제가 있다는 뜻이다.
+    "crate" to ItemArtSpec.Res(
+        ArtBox(size = Size(52f, 56f), anchor = Offset(26f, 40f)),
+        resId = R.drawable.crate_01,
+    ),
+
+    "lantern" to ItemArtSpec.Sheet(
+        box = ArtBox(size = Size(36f, 48f), anchor = Offset(18f, 44f)),
+        movable = true,
+        resId = R.drawable.lantern_sheet,
+        frameWidth = 144,
+        frameHeight = 192,
+        columns = 4,
+        frameCount = 4,
+        fps = 4,
+    ) { _ ->
+        // 시트가 정상이면 이 폴백은 절대 호출되지 않는다.
+        // 호출되면(= 분홍 네모가 보이면) 리소스 해석이 실패한 것.
+        drawRect(RoomPalette.GhostInvalid, size = Size(36f, 48f))
+    },
+
     RoomDefaults.DOG_ID to ItemArtSpec.Sheet(
         box = ArtBox(size = Size(56f, 78f), anchor = Offset(28f, 74f), alwaysOnTop = true),
         movable = false,
@@ -107,6 +132,8 @@ val ItemLabels: Map<String, String> = mapOf(
     "cushion" to "쿠션",
     "vase" to "꽃병",
     "blanket" to "담요",
+    "crate" to "상자(PNG)",
+    "lantern" to "가로등(시트)",
     RoomDefaults.DOG_ID to "강아지",
 )
 
@@ -124,7 +151,12 @@ fun rememberItemCatalog(specs: Map<String, ItemArtSpec> = ItemSpecs): ItemCatalo
 
             is ItemArtSpec.Res ->
                 if (spec.resId != 0) {
-                    ItemArt.Bitmap(spec.box, spec.movable, ImageBitmap.imageResource(spec.resId))
+                    ItemArt.Bitmap(
+                        spec.box,
+                        spec.movable,
+                        ImageBitmap.imageResource(spec.resId),
+                        spec.filterQuality,
+                    )
                 } else {
                     ItemArt.Shapes(spec.box, spec.movable) { }
                 }
@@ -141,6 +173,7 @@ fun rememberItemCatalog(specs: Map<String, ItemArtSpec> = ItemSpecs): ItemCatalo
                             columns = spec.columns,
                             frameCount = spec.frameCount,
                             fps = spec.fps,
+                            filterQuality = spec.filterQuality,
                         )
                     } else {
                         null

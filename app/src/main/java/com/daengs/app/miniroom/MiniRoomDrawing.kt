@@ -56,8 +56,9 @@ fun DrawScope.drawItem(
             is ItemArt.Bitmap -> drawImage(
                 image = art.image,
                 dstOffset = androidx.compose.ui.unit.IntOffset.Zero,
+                // dstSize 는 **기본 단위** 기준이다 (바깥 transform 이 이미 scale 을 걸어놨다).
                 dstSize = IntSize(art.box.size.width.toInt(), art.box.size.height.toInt()),
-                filterQuality = androidx.compose.ui.graphics.FilterQuality.None,
+                filterQuality = art.filterQuality,
             )
 
             is ItemArt.Sheet -> {

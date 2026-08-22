@@ -76,6 +76,9 @@ object RoomDefaults {
         "vase" to 1,
         "house" to 1,
         "toybox" to 1,
+        // 에셋 파이프라인 검증용
+        "crate" to 2,
+        "lantern" to 2,
     )
 
     /** 인벤토리에 보여줄 순서. 강아지는 아이템이 아니므로 빠진다. */

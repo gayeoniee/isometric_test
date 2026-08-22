@@ -29,12 +29,15 @@ import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.daengs.app.miniroom.RoomDefaults
-import com.daengs.app.miniroom.art.ItemArtSpec
+import com.daengs.app.miniroom.art.ItemArt
+import com.daengs.app.miniroom.art.ItemCatalog
 import com.daengs.app.miniroom.art.ItemLabels
-import com.daengs.app.miniroom.art.ItemSpecs
+import com.daengs.app.miniroom.sprite.drawSpriteFrame
 import com.daengs.app.ui.theme.CardWhite
 import com.daengs.app.ui.theme.DaengPink
 import com.daengs.app.ui.theme.DaengPinkDeep
@@ -55,6 +58,7 @@ import com.daengs.app.ui.theme.TextMuted
  */
 @Composable
 fun InventoryPanel(
+    catalog: ItemCatalog,
     available: (String) -> Int,
     onPick: (String) -> Unit,
     modifier: Modifier = Modifier,
@@ -80,11 +84,11 @@ fun InventoryPanel(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 RoomDefaults.INVENTORY_ORDER.forEach { id ->
-                    val spec = ItemSpecs[id]
-                    if (spec != null) {
+                    val art = catalog[id]
+                    if (art != null) {
                         InventorySlot(
                             id = id,
-                            spec = spec,
+                            art = art,
                             count = available(id),
                             onClick = { onPick(id) },
                         )
@@ -98,7 +102,7 @@ fun InventoryPanel(
 @Composable
 private fun InventorySlot(
     id: String,
-    spec: ItemArtSpec,
+    art: ItemArt,
     count: Int,
     onClick: () -> Unit,
 ) {
@@ -113,7 +117,7 @@ private fun InventorySlot(
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         // 개수는 아래 "x0" 하나로 충분하다. 썸네일 위에 0 을 겹쳐 쓰면 중복이다.
-        ItemThumb(spec, Modifier.size(46.dp).alpha(if (enabled) 1f else 0.3f))
+        ItemThumb(art, Modifier.size(46.dp).alpha(if (enabled) 1f else 0.3f))
         Spacer(Modifier.height(2.dp))
         Text(
             ItemLabels[id] ?: id,
@@ -133,23 +137,37 @@ private fun InventorySlot(
 /**
  * 인벤토리 썸네일.
  *
- * 방에서 쓰는 것과 **같은 도형 코드**를 그대로 호출한다. 아이콘을 따로 만들면
- * 나중에 PNG 로 갈아끼울 때 두 군데를 고쳐야 하고, 실제 모습과 어긋나기 쉽다.
+ * 방에서 쓰는 것과 **같은 아트**를 그대로 그린다. 아이콘을 따로 만들면 나중에
+ * PNG 로 갈아끼울 때 두 군데를 고쳐야 하고 실제 모습과 어긋나기 쉽다.
+ *
+ * 선언(spec)이 아니라 **해석된 [ItemArt]** 를 받는다. spec 만 보면 리소스가 아직
+ * 해석되기 전이라 PNG 아이템을 그릴 수 없어서 빈칸이 나온다 (실제로 그랬다).
  */
 @Composable
-fun ItemThumb(spec: ItemArtSpec, modifier: Modifier = Modifier) {
+fun ItemThumb(art: ItemArt, modifier: Modifier = Modifier) {
     Canvas(modifier) {
-        val box = spec.box
+        val box = art.box
         val z = minOf(size.width / box.size.width, size.height / box.size.height) * 0.86f
         translate(
             (size.width - box.size.width * z) / 2f,
             (size.height - box.size.height * z) / 2f,
         ) {
             scale(z, z, pivot = Offset.Zero) {
-                when (spec) {
-                    is ItemArtSpec.Shapes -> spec.draw(this, 2)
-                    is ItemArtSpec.Sheet -> spec.fallback(this, 2)
-                    is ItemArtSpec.Res -> Unit
+                when (art) {
+                    is ItemArt.Shapes -> art.draw(this, 2)
+                    is ItemArt.Bitmap -> drawImage(
+                        image = art.image,
+                        dstOffset = IntOffset.Zero,
+                        dstSize = IntSize(box.size.width.toInt(), box.size.height.toInt()),
+                        filterQuality = art.filterQuality,
+                    )
+
+                    is ItemArt.Sheet ->
+                        if (art.sheet != null) {
+                            drawSpriteFrame(art.sheet, 0, box.size)
+                        } else {
+                            art.fallback(this, 2)
+                        }
                 }
             }
         }
@@ -180,6 +198,10 @@ fun InventoryButton(open: Boolean, onClick: () -> Unit, modifier: Modifier = Mod
 @Composable
 private fun InventoryPanelPreview() {
     DaengsTheme {
-        InventoryPanel(available = { if (it == "rug") 0 else 2 }, onPick = {})
+        InventoryPanel(
+            catalog = com.daengs.app.miniroom.art.rememberItemCatalog(),
+            available = { if (it == "rug") 0 else 2 },
+            onPick = {},
+        )
     }
 }

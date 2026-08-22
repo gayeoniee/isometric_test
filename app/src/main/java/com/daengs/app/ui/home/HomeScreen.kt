@@ -105,6 +105,7 @@ fun HomeScreen(
             val slot = Modifier.padding(horizontal = 14.dp).height(CardSlotHeight)
             if (inventoryOpen) {
                 InventoryPanel(
+                    catalog = catalog,
                     available = { roomState.availableCount(it) },
                     onPick = { roomState.placeFromInventory(it, catalog) },
                     modifier = slot,
