@@ -383,3 +383,92 @@ fun DrawScope.drawDesk() {
     )
     if (legTop > 0f) Unit
 }
+
+/**
+ * 사람 침대 — **2x1 칸**을 차지하는 첫 다칸 아이템. anchor = (52, 58)
+ *
+ * 발자국 마름모의 네 꼭짓점은 기준점 기준으로
+ *   뒤(-16,-24) 오른쪽(48,8) 앞(16,24) 왼쪽(-48,-8)
+ * 이다. (2칸 x 1칸을 toScreen 으로 옮긴 값)
+ */
+fun DrawScope.drawHumanBed() {
+    val a = Offset(36f, 34f)   // 뒤
+    val b = Offset(100f, 66f)  // 오른쪽
+    val c = Offset(68f, 82f)   // 앞
+    val d = Offset(4f, 50f)    // 왼쪽
+    val lift = 11f             // 매트리스 두께
+
+    fun up(p: Offset, h: Float) = Offset(p.x, p.y - h)
+
+    // 바닥 그림자 (발자국 폭에 맞춰 넓게)
+    drawOval(RoomPalette.Shadow, Offset(2f, 44f), Size(100f, 46f))
+
+    // 헤드보드 — 뒤쪽(d-a 모서리)에 세운 판. 매트리스보다 먼저 그려야 뒤로 간다.
+    val hb = 30f
+    drawPath(
+        poly(listOf(d, a, up(a, hb), up(d, hb))),
+        RoomPalette.BoxLeft,
+    )
+    drawPath(
+        poly(listOf(up(d, hb), up(a, hb), up(a, hb + 4f), up(d, hb + 4f))),
+        RoomPalette.BoxTop,
+    )
+
+    // 프레임 옆면 (보이는 두 면)
+    drawPath(poly(listOf(d, c, up(c, lift), up(d, lift))), darken(RoomPalette.BoxLeft, 0.08f))
+    drawPath(poly(listOf(c, b, up(b, lift), up(c, lift))), RoomPalette.BoxRight)
+
+    // 매트리스 윗면
+    drawPath(
+        poly(listOf(up(a, lift), up(b, lift), up(c, lift), up(d, lift))),
+        RoomPalette.RugFill,
+    )
+
+    // 이불 — 앞쪽 절반을 덮는다
+    val mid1 = Offset((a.x + d.x) / 2f + 16f, (a.y + d.y) / 2f + 8f)
+    val mid2 = Offset((a.x + b.x) / 2f + 16f, (a.y + b.y) / 2f + 8f)
+    drawPath(
+        poly(
+            listOf(
+                up(mid1, lift), up(mid2, lift), up(b, lift), up(c, lift),
+            )
+        ),
+        RoomPalette.BedFill,
+    )
+    // 이불 접힌 단
+    drawPath(
+        poly(
+            listOf(
+                up(mid1, lift), up(mid2, lift),
+                up(mid2, lift + 3f), up(mid1, lift + 3f),
+            )
+        ),
+        lighten(RoomPalette.BedFill, 0.35f),
+    )
+
+    // 베개 — 뒤쪽(헤드보드 쪽)
+    val pc = Offset((a.x + d.x) / 2f + 8f, (a.y + d.y) / 2f + 4f - lift)
+    drawPath(
+        poly(
+            listOf(
+                Offset(pc.x - 4f, pc.y - 11f),
+                Offset(pc.x + 20f, pc.y - 1f),
+                Offset(pc.x + 4f, pc.y + 9f),
+                Offset(pc.x - 20f, pc.y - 1f),
+            )
+        ),
+        Color.White.copy(alpha = 0.92f),
+    )
+    drawPath(
+        poly(
+            listOf(
+                Offset(pc.x - 4f, pc.y - 11f),
+                Offset(pc.x + 20f, pc.y - 1f),
+                Offset(pc.x + 4f, pc.y + 9f),
+                Offset(pc.x - 20f, pc.y - 1f),
+            )
+        ),
+        darken(RoomPalette.RugFill, 0.10f),
+        style = Stroke(width = 1f),
+    )
+}

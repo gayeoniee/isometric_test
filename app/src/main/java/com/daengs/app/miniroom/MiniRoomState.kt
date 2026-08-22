@@ -79,9 +79,16 @@ class MiniRoomState internal constructor(initial: List<PlacedItem>) {
         return items.sortedWith(
             compareBy(
                 { layerOf(it, catalog) },
-                { if (d != null && it.instanceId == d.instanceId) d.targetDepth else it.depth },
+                { depthOf(it, catalog, d) },
             )
         )
+    }
+
+    private fun depthOf(item: PlacedItem, catalog: ItemCatalog, d: DragState?): Int {
+        val fp = catalog[item.itemId]?.box?.footprint
+        val col = if (d != null && item.instanceId == d.instanceId) d.targetCol else item.col
+        val row = if (d != null && item.instanceId == d.instanceId) d.targetRow else item.row
+        return depthKey(col, row, fp?.width ?: 1, fp?.height ?: 1)
     }
 
     private fun layerOf(item: PlacedItem, catalog: ItemCatalog): Int {

@@ -56,6 +56,15 @@ data class DragState(
     val targetDepth: Int get() = targetCol + targetRow
 }
 
+/**
+ * 앞뒤 정렬 키. 1x1 이면 CONTEXT.md 4번대로 col + row 다.
+ *
+ * 다칸 아이템은 **가장 앞 칸** 기준이어야 한다. 2x1 침대를 col+row 로 재면
+ * 자기 앞칸에 있는 물건보다 뒤로 밀려서 침대가 그 물건에 가려진다.
+ * fw = fh = 1 이면 col + row 로 그대로 줄어들어 기존 동작은 안 바뀐다.
+ */
+fun depthKey(col: Int, row: Int, fw: Int, fh: Int): Int = (col + fw - 1) + (row + fh - 1)
+
 object RoomDefaults {
     const val DOG_ID = "dog"
 
@@ -66,6 +75,7 @@ object RoomDefaults {
     val OWNED: Map<String, Int> = mapOf(
         "rug" to 1,
         "bed" to 1,
+        "humanbed" to 1,
         "desk" to 1,
         "house" to 1,
         "bowl" to 1,
@@ -88,6 +98,7 @@ object RoomDefaults {
         PlacedItem(5L, DOG_ID, 2, 2),
         PlacedItem(6L, "bowl", 4, 3),
         PlacedItem(7L, "waterbowl", 5, 3),
-        PlacedItem(8L, "lantern", 0, 1),
+        PlacedItem(8L, "lantern", 0, 4),
+        PlacedItem(9L, "humanbed", 0, 1),
     )
 }

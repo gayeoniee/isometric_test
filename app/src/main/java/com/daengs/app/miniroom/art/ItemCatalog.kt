@@ -50,6 +50,15 @@ val ItemSpecs: Map<String, ItemArtSpec> = mapOf(
         ArtBox(size = Size(78f, 48f), anchor = Offset(39f, 30f), flat = true),
     ) { drawBed() },
 
+    // 유일한 다칸 아이템 (2x1). footprint 를 실제로 쓰는 첫 사례다.
+    "humanbed" to ItemArtSpec.Shapes(
+        ArtBox(
+            footprint = androidx.compose.ui.unit.IntSize(2, 1),
+            size = Size(104f, 90f),
+            anchor = Offset(52f, 58f),
+        ),
+    ) { drawHumanBed() },
+
     "desk" to ItemArtSpec.Shapes(
         ArtBox(size = Size(72f, 66f), anchor = Offset(36f, 46f)),
     ) { drawDesk() },
@@ -105,7 +114,8 @@ val ItemSpecs: Map<String, ItemArtSpec> = mapOf(
 /** 사람이 읽는 이름. 나중에 아이템 목록 UI 에서 쓴다. */
 val ItemLabels: Map<String, String> = mapOf(
     "rug" to "카펫",
-    "bed" to "침대",
+    "bed" to "강아지침대",
+    "humanbed" to "침대",
     "desk" to "책상",
     "house" to "강아지집",
     "bowl" to "밥그릇",

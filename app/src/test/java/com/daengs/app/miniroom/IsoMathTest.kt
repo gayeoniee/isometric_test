@@ -112,6 +112,21 @@ class IsoMathTest {
     }
 
     @Test
+    fun `다칸 아이템은 가장 앞 칸으로 정렬된다`() {
+        // 1x1 은 기존과 동일해야 한다 (회귀 방지)
+        assertEquals(4, depthKey(2, 2, 1, 1))
+        assertEquals(0, depthKey(0, 0, 1, 1))
+
+        // 2x1 침대가 (0,1) 에 있으면 앞칸은 (1,1) 이라 깊이 2
+        assertEquals(2, depthKey(0, 1, 2, 1))
+        // col+row 로 재면 1 이라, (1,1) 에 있는 1x1 물건(깊이 2)보다 뒤로 밀린다
+        assertTrue("앞칸 기준이 더 커야 한다", depthKey(0, 1, 2, 1) > 0 + 1)
+
+        // 2x2 는 양쪽 다 +1
+        assertEquals(6, depthKey(2, 2, 2, 2))
+    }
+
+    @Test
     fun `앞뒤 정렬 키는 col 더하기 row 다`() {
         val items = listOf(
             PlacedItem(1, "a", 5, 0), // depth 5
