@@ -54,8 +54,8 @@ val ItemSpecs: Map<String, ItemArtSpec> = mapOf(
     "humanbed" to ItemArtSpec.Shapes(
         ArtBox(
             footprint = androidx.compose.ui.unit.IntSize(2, 1),
-            size = Size(104f, 90f),
-            anchor = Offset(52f, 58f),
+            size = Size(104f, 98f),
+            anchor = Offset(52f, 66f),
         ),
     ) { drawHumanBed() },
 

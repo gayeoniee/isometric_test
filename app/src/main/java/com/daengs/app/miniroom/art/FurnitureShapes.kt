@@ -8,7 +8,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.rotate
 import com.daengs.app.miniroom.RoomSpec
 import com.daengs.app.ui.theme.RoomPalette
 
@@ -385,90 +387,98 @@ fun DrawScope.drawDesk() {
 }
 
 /**
- * 사람 침대 — **2x1 칸**을 차지하는 첫 다칸 아이템. anchor = (52, 58)
+ * 사람 침대 — **2x1 칸**. anchor = (52, 66)
  *
- * 발자국 마름모의 네 꼭짓점은 기준점 기준으로
- *   뒤(-16,-24) 오른쪽(48,8) 앞(16,24) 왼쪽(-48,-8)
- * 이다. (2칸 x 1칸을 toScreen 으로 옮긴 값)
+ * 관처럼 안 보이게 하는 요소가 셋이다.
+ *  1) **다리** — 바닥과 프레임 사이에 틈이 있어야 가구로 읽힌다
+ *  2) **이불 끝단을 둥글게** — 직선으로 자르면 뚜껑이 덮인 것처럼 보인다
+ *  3) **베개를 볼록하게** — 납작한 마름모는 종이처럼 보인다
  */
 fun DrawScope.drawHumanBed() {
-    val a = Offset(36f, 34f)   // 뒤
-    val b = Offset(100f, 66f)  // 오른쪽
-    val c = Offset(68f, 82f)   // 앞
-    val d = Offset(4f, 50f)    // 왼쪽
-    val lift = 11f             // 매트리스 두께
+    val ctr = Offset(52f, 66f)
+    val a = Offset(36f, 42f)   // 뒤 (머리맡)
+    val b = Offset(100f, 74f)  // 오른쪽
+    val c = Offset(68f, 90f)   // 앞 (발치)
+    val d = Offset(4f, 58f)    // 왼쪽
 
     fun up(p: Offset, h: Float) = Offset(p.x, p.y - h)
+    fun ins(p: Offset, t: Float) = Offset(ctr.x + (p.x - ctr.x) * t, ctr.y + (p.y - ctr.y) * t)
+    fun lerpP(p: Offset, q: Offset, t: Float) = Offset(p.x + (q.x - p.x) * t, p.y + (q.y - p.y) * t)
 
-    // 바닥 그림자 (발자국 폭에 맞춰 넓게)
-    drawOval(RoomPalette.Shadow, Offset(2f, 44f), Size(100f, 46f))
+    val legH = 9f
+    val frameH = 5f
+    val topH = legH + frameH          // 프레임 윗면 높이
+    val mattH = 13f
 
-    // 헤드보드 — 뒤쪽(d-a 모서리)에 세운 판. 매트리스보다 먼저 그려야 뒤로 간다.
-    val hb = 30f
-    drawPath(
-        poly(listOf(d, a, up(a, hb), up(d, hb))),
-        RoomPalette.BoxLeft,
-    )
-    drawPath(
-        poly(listOf(up(d, hb), up(a, hb), up(a, hb + 4f), up(d, hb + 4f))),
+    drawOval(RoomPalette.Shadow, Offset(4f, 56f), Size(96f, 42f))
+
+    // --- 헤드보드 (맨 뒤) ---
+    val hbH = 26f
+    drawPath(poly(listOf(d, a, up(a, hbH), up(d, hbH))), RoomPalette.BoxLeft)
+    // 둥근 윗단
+    drawLine(
         RoomPalette.BoxTop,
+        up(d, hbH), up(a, hbH),
+        strokeWidth = 6f, cap = StrokeCap.Round,
     )
 
-    // 프레임 옆면 (보이는 두 면)
-    drawPath(poly(listOf(d, c, up(c, lift), up(d, lift))), darken(RoomPalette.BoxLeft, 0.08f))
-    drawPath(poly(listOf(c, b, up(b, lift), up(c, lift))), RoomPalette.BoxRight)
+    // --- 다리 (보이는 셋) ---
+    listOf(d, c, b).forEach { p ->
+        drawLine(darken(RoomPalette.BoxLeft, 0.18f), p, up(p, legH), strokeWidth = 5f, cap = StrokeCap.Round)
+    }
 
-    // 매트리스 윗면
+    // --- 프레임 ---
+    drawPath(poly(listOf(up(d, legH), up(c, legH), up(c, topH), up(d, topH))), darken(RoomPalette.BoxLeft, 0.06f))
+    drawPath(poly(listOf(up(c, legH), up(b, legH), up(b, topH), up(c, topH))), RoomPalette.BoxRight)
+
+    // --- 매트리스 (프레임보다 살짝 안쪽) ---
+    val ma = ins(a, 0.93f); val mb = ins(b, 0.93f)
+    val mc = ins(c, 0.93f); val md = ins(d, 0.93f)
+    drawPath(poly(listOf(up(md, topH), up(mc, topH), up(mc, topH + mattH), up(md, topH + mattH))),
+        darken(RoomPalette.RugFill, 0.12f))
+    drawPath(poly(listOf(up(mc, topH), up(mb, topH), up(mb, topH + mattH), up(mc, topH + mattH))),
+        darken(RoomPalette.RugFill, 0.04f))
     drawPath(
-        poly(listOf(up(a, lift), up(b, lift), up(c, lift), up(d, lift))),
+        poly(listOf(up(ma, topH + mattH), up(mb, topH + mattH), up(mc, topH + mattH), up(md, topH + mattH))),
         RoomPalette.RugFill,
     )
 
-    // 이불 — 앞쪽 절반을 덮는다
-    val mid1 = Offset((a.x + d.x) / 2f + 16f, (a.y + d.y) / 2f + 8f)
-    val mid2 = Offset((a.x + b.x) / 2f + 16f, (a.y + b.y) / 2f + 8f)
+    val surf = topH + mattH
+
+    // --- 이불 : 발치쪽 절반 ---
+    // 이불이 접히는 선 — 양쪽 모서리에서 발치 쪽으로 42% 지점
+    val f1 = lerpP(md, mc, 0.42f)
+    val f2 = lerpP(ma, mb, 0.42f)
     drawPath(
-        poly(
-            listOf(
-                up(mid1, lift), up(mid2, lift), up(b, lift), up(c, lift),
-            )
-        ),
+        poly(listOf(up(f1, surf), up(f2, surf), up(mb, surf), up(mc, surf))),
         RoomPalette.BedFill,
     )
-    // 이불 접힌 단
-    drawPath(
-        poly(
-            listOf(
-                up(mid1, lift), up(mid2, lift),
-                up(mid2, lift + 3f), up(mid1, lift + 3f),
-            )
-        ),
-        lighten(RoomPalette.BedFill, 0.35f),
+    // 옆으로 흘러내린 부분
+    drawPath(poly(listOf(up(f1, surf), up(mc, surf), up(mc, surf - 7f), up(f1, surf - 7f))),
+        darken(RoomPalette.BedFill, 0.14f))
+    drawPath(poly(listOf(up(mc, surf), up(mb, surf), up(mb, surf - 7f), up(mc, surf - 7f))),
+        darken(RoomPalette.BedFill, 0.06f))
+    // 접힌 끝단 — 둥글게. 이게 없으면 뚜껑처럼 보인다.
+    drawLine(
+        lighten(RoomPalette.BedFill, 0.45f),
+        up(f1, surf), up(f2, surf),
+        strokeWidth = 7f, cap = StrokeCap.Round,
     )
 
-    // 베개 — 뒤쪽(헤드보드 쪽)
-    val pc = Offset((a.x + d.x) / 2f + 8f, (a.y + d.y) / 2f + 4f - lift)
-    drawPath(
-        poly(
-            listOf(
-                Offset(pc.x - 4f, pc.y - 11f),
-                Offset(pc.x + 20f, pc.y - 1f),
-                Offset(pc.x + 4f, pc.y + 9f),
-                Offset(pc.x - 20f, pc.y - 1f),
+    // --- 베개 : 볼록하게. 납작한 마름모로 그리면 종이처럼 보인다 ---
+    val pillowAxis = -26.57f   // 아이소메트릭 가로축 각도 (atan 1/2)
+    listOf(0.26f, 0.66f).forEach { t ->
+        val cen = lerpP(lerpP(md, mc, 0.13f), lerpP(ma, mb, 0.13f), t)
+        val p = up(cen, surf + 3f)
+        rotate(pillowAxis, p) {
+            drawOval(
+                brush = Brush.verticalGradient(
+                    listOf(Color.White, darken(RoomPalette.RugFill, 0.08f)),
+                    startY = p.y - 8f, endY = p.y + 7f,
+                ),
+                topLeft = Offset(p.x - 15f, p.y - 7.5f),
+                size = Size(30f, 15f),
             )
-        ),
-        Color.White.copy(alpha = 0.92f),
-    )
-    drawPath(
-        poly(
-            listOf(
-                Offset(pc.x - 4f, pc.y - 11f),
-                Offset(pc.x + 20f, pc.y - 1f),
-                Offset(pc.x + 4f, pc.y + 9f),
-                Offset(pc.x - 20f, pc.y - 1f),
-            )
-        ),
-        darken(RoomPalette.RugFill, 0.10f),
-        style = Stroke(width = 1f),
-    )
+        }
+    }
 }
