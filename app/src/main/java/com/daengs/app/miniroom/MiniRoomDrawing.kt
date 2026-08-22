@@ -86,10 +86,11 @@ fun DrawScope.drawRemoveHint(center: Offset, g: RoomGeometry) {
 fun DrawScope.drawLiftShadow(g: RoomGeometry, col: Int, row: Int, footprint: IntSize) {
     val c = g.footprintCenter(col, row, footprint)
     val w = g.tw * 0.62f
+    val h = w / RoomSpec.TILE_RATIO
     drawOval(
         RoomPalette.Shadow.copy(alpha = 0.28f),
-        Offset(c.x - w / 2f, c.y - w / 4f),
-        Size(w, w / 2f),
+        Offset(c.x - w / 2f, c.y - h / 2f),
+        Size(w, h),
     )
 }
 

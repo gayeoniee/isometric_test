@@ -66,10 +66,10 @@ class IsoMathTest {
     }
 
     @Test
-    fun `타일 비율은 항상 2대1이다`() {
+    fun `타일 비율은 화면 크기와 무관하게 일정하다`() {
         listOf(320f, 360f, 411f, 480f, 600f).forEach { w ->
             val geom = RoomGeometry.of(w)
-            assertEquals("width $w", geom.tw, geom.th * 2f, 0.001f)
+            assertEquals("width $w", RoomSpec.TILE_RATIO, geom.tw / geom.th, 0.001f)
         }
     }
 

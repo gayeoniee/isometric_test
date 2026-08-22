@@ -54,33 +54,41 @@ object RoomSpec {
     const val GRID = 6
 
     /** 아트 저작 기준 타일 크기. 화면 크기와 무관한 "기본 단위". */
-    const val BASE_TILE_W = 64f
-    const val BASE_TILE_H = 32f
-
     /**
-     * 벽 높이 = 5 타일높이, 벽 위 여백 = 0.5 타일높이.
+     * 타일 가로:세로 비율. **이 값 하나로 방 전체 투영이 결정된다.**
      *
-     * 세로 공간이 고정(스크롤 없음)이라 벽을 높이면 바닥이 좁아진다.
-     * 그래서 여백을 1 → 0.5 로 줄여 상쇄했다: 벽은 25% 높아지고
-     * 방 전체 높이는 11 → 11.5 라 바닥은 4% 만 줄어든다.
+     * 직교 투영에서 `타일 비율 = 1 / sin(카메라 고도각)` 이므로
+     *   2.0000f -> 고도 30도 (CONTEXT.md 4번의 원래 규격 64x32)
+     *   1.4142f -> 고도 45도 (Kenney 프리렌더 스프라이트가 이 각도)
+     *
+     * 되돌리려면 이 상수만 2f 로 바꾸면 된다.
      */
-    const val WALL_TILES = 5f
-    const val HEADROOM_TILES = 0.5f
+    const val TILE_RATIO = 2f
 
-    /** 방 전체 높이를 th 단위로. 여백 + 벽 + 격자 = 11.5 */
-    const val ROOM_TILES_H = HEADROOM_TILES + WALL_TILES + GRID
+    const val BASE_TILE_W = 64f
+    const val BASE_TILE_H = BASE_TILE_W / TILE_RATIO
 
     /**
-     * 방의 가로:세로 비율.
-     * 가로 = 6*tw = 12*th, 세로 = 11*th  →  12:11
+     * 벽 높이와 벽 위 여백은 **tw 배수**로 잡는다.
+     *
+     * th 배수로 잡으면 TILE_RATIO 를 바꿀 때 벽 높이까지 같이 변해서
+     * 무엇 때문에 달라 보이는지 구분이 안 된다. tw 기준이면 지면 비율만 바뀐다.
+     * (2.5*tw = 예전의 5*th 와 같은 높이)
      */
-    const val ASPECT = (GRID * 2f) / ROOM_TILES_H
+    const val WALL_TW = 2.5f
+    const val HEAD_TW = 0.25f
+
+    /** 방 전체 높이를 tw 배수로. 여백 + 벽 + 격자 */
+    const val ROOM_H_TW = HEAD_TW + WALL_TW + GRID / TILE_RATIO
+
+    /** 방의 가로:세로 비율 */
+    const val ASPECT = GRID / ROOM_H_TW
 }
 
 /**
  * 화면 폭 하나에서 파생된 방의 기하 정보 전부.
  *
- * tw = W/6, th = tw/2 로 **구성상** 2:1 비율이 깨질 수 없다.
+ * th 는 tw 에서 [RoomSpec.TILE_RATIO] 로 나와서 비율이 어긋날 수 없다.
  * [scale] 은 기본 단위 1 이 화면 px 로 몇인지를 나타내는 유일한 환산 계수다.
  */
 @Immutable
@@ -116,12 +124,12 @@ data class RoomGeometry(
          * tw:th = 2:1 은 여기서도 구성상 깨지지 않는다.
          */
         fun of(widthPx: Float, heightPx: Float): RoomGeometry {
-            val tw = min(widthPx / RoomSpec.GRID, heightPx / (RoomSpec.ROOM_TILES_H / 2f))
-            val th = tw / 2f
-            val wall = RoomSpec.WALL_TILES * th
-            val head = RoomSpec.HEADROOM_TILES * th
+            val tw = min(widthPx / RoomSpec.GRID, heightPx / RoomSpec.ROOM_H_TW)
+            val th = tw / RoomSpec.TILE_RATIO
+            val wall = RoomSpec.WALL_TW * tw
+            val head = RoomSpec.HEAD_TW * tw
             // 남는 세로 공간은 위아래로 나눠 방을 가운데 둔다
-            val top = ((heightPx - RoomSpec.ROOM_TILES_H * th) / 2f).coerceAtLeast(0f)
+            val top = ((heightPx - RoomSpec.ROOM_H_TW * tw) / 2f).coerceAtLeast(0f)
             return RoomGeometry(
                 tw = tw,
                 th = th,

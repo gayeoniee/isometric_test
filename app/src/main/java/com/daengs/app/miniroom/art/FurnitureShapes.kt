@@ -7,6 +7,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import com.daengs.app.miniroom.RoomSpec
 import com.daengs.app.ui.theme.RoomPalette
 
 // ---------------------------------------------------------------------------
@@ -25,13 +26,10 @@ import com.daengs.app.ui.theme.RoomPalette
 // - 서 있는 물건(화분·공)은 바닥에 닿는 **맨 아랫점**이 anchor 다.
 // ---------------------------------------------------------------------------
 
-/** 바닥 그림자. (cx,cy) 가 타원의 중심이자 접지점이다. 아이소메트릭이므로 2:1. */
+/** 바닥 그림자. (cx,cy) 가 타원의 중심이자 접지점. 납작한 정도는 타일 비율을 따른다. */
 private fun DrawScope.floorShadow(cx: Float, cy: Float, w: Float) {
-    drawOval(
-        RoomPalette.Shadow,
-        Offset(cx - w / 2f, cy - w / 4f),
-        Size(w, w / 2f),
-    )
+    val h = w / RoomSpec.TILE_RATIO
+    drawOval(RoomPalette.Shadow, Offset(cx - w / 2f, cy - h / 2f), Size(w, h))
 }
 
 /** 러그 — flat 아트. 칸을 점유하지 않아서 그 위에 강아지가 앉는다. */

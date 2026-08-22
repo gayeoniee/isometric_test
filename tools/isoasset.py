@@ -129,6 +129,96 @@ def cmd_pastel(paths, outdir, sat, lift, warm):
         print("  ->", dst)
 
 
+def cmd_template(outdir, cols, rows, height_tiles, scale):
+    """2D로 직접 그릴 때 밑에 깔 아이소메트릭 격자 템플릿.
+
+    기본 단위에서 타일은 64x32 (2:1). scale 배로 확대해 내보낸다.
+    """
+    from PIL import ImageDraw
+
+    TW, TH = 64.0 * scale, 32.0 * scale
+    fw, fh = cols * TW, rows * TH          # 발자국 다이아몬드 크기
+    W = int(fw + TW)                        # 좌우 여유 반 칸씩
+    top_room = height_tiles * TH * 2        # 위로 쓸 수 있는 높이
+    H = int(top_room + fh + TH * 0.6)
+    ax, ay = W / 2.0, H - fh / 2.0 - TH * 0.3   # 기준점 = 발자국 중심
+
+    im = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    d = ImageDraw.Draw(im)
+
+    # 투명 확인용 체커보드
+    c = int(8 * scale)
+    for y in range(0, H, c):
+        for x in range(0, W, c):
+            if (x // c + y // c) % 2 == 0:
+                d.rectangle([x, y, x + c, y + c], fill=(244, 244, 244, 255))
+
+    GUIDE = (232, 122, 150, 255)
+    GHOST = (150, 180, 230, 120)
+
+    def dia(cx, cy, w, h, **kw):
+        d.polygon([(cx, cy - h / 2), (cx + w / 2, cy), (cx, cy + h / 2), (cx - w / 2, cy)], **kw)
+
+    # 발자국 다이아몬드 (= 이 아이템이 차지하는 바닥)
+    dia(ax, ay, fw, fh, outline=GUIDE, width=max(2, int(scale)))
+    # 칸 구분선
+    for i in range(1, cols):
+        t = i / cols
+        d.line([(ax - fw / 2 + fw * t / 2, ay - fh / 2 + fh * t / 2),
+                (ax + fw * t / 2, ay + fh / 2 - fh * (1 - t) / 2)],
+               fill=(232, 122, 150, 90), width=1)
+    for i in range(1, rows):
+        t = i / rows
+        d.line([(ax + fw / 2 - fw * t / 2, ay - fh / 2 + fh * t / 2),
+                (ax - fw * t / 2, ay + fh / 2 - fh * (1 - t) / 2)],
+               fill=(232, 122, 150, 90), width=1)
+
+    # 1x1x1 참고 정육면체 — 이 각도에 맞춰 그리면 격자에 맞는다.
+    # 밑면은 발자국 다이아몬드와 정확히 겹친다.
+    ch = TW / 2                      # 한 칸 높이 = 타일 가로의 절반
+    N = (ax, ay - TH / 2)            # 뒤
+    E = (ax + TW / 2, ay)            # 오른쪽
+    S = (ax, ay + TH / 2)            # 앞 (보이는 모서리)
+    W_ = (ax - TW / 2, ay)           # 왼쪽
+    up = lambda p: (p[0], p[1] - ch)
+
+    # 보이는 밑면 두 변
+    d.line([W_, S], fill=GHOST, width=2)
+    d.line([S, E], fill=GHOST, width=2)
+    # 수직 모서리 — 왼쪽/앞/오른쪽만 보인다
+    for p_ in (W_, S, E):
+        d.line([p_, up(p_)], fill=GHOST, width=2)
+    # 윗면 마름모
+    for p_, q_ in ((N, E), (E, S), (S, W_), (W_, N)):
+        d.line([up(p_), up(q_)], fill=GHOST, width=2)
+
+    # 높이 눈금 (한 칸 = TH)
+    for k in range(1, int(height_tiles * 2) + 1):
+        y = ay - fh / 2 - k * TH
+        if y < 4:
+            break
+        d.line([(6, y), (18, y)], fill=(120, 120, 120, 160), width=1)
+        d.text((22, y - 6), "%d" % (k * 32), fill=(120, 120, 120, 200))
+
+    # 기준점 십자
+    r = 9 * scale / 4
+    d.line([(ax - r, ay), (ax + r, ay)], fill=(255, 40, 90, 255), width=max(2, int(scale / 2)))
+    d.line([(ax, ay - r), (ax, ay + r)], fill=(255, 40, 90, 255), width=max(2, int(scale / 2)))
+
+    d.text((6, 6), "footprint %dx%d  tile 64x32 (2:1)  scale x%d" % (cols, rows, scale),
+           fill=(60, 60, 60, 255))
+    d.text((6, 20), "ArtBox size = (%d, %d) base units" % (W / scale, H / scale),
+           fill=(60, 60, 60, 255))
+    d.text((6, 36), "anchor = (%d, %d)  <- 빨간 십자" % (ax / scale, ay / scale),
+           fill=(200, 30, 70, 255))
+
+    os.makedirs(outdir, exist_ok=True)
+    dst = os.path.join(outdir, "iso-template-%dx%d.png" % (cols, rows))
+    im.save(dst)
+    print("  ->", dst, im.size,
+          "| ArtBox size=(%d,%d) anchor=(%d,%d)" % (W / scale, H / scale, ax / scale, ay / scale))
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -144,9 +234,18 @@ def main():
     p.add_argument("--lift", type=float, default=0.16, help="명도 올림")
     p.add_argument("--warm", type=float, default=0.02, help="색상을 따뜻한 쪽으로")
 
+    t = sub.add_parser("template", help="2D로 직접 그릴 때 쓸 격자 템플릿 생성")
+    t.add_argument("-o", "--outdir", default="docs/templates")
+    t.add_argument("--cols", type=int, default=1)
+    t.add_argument("--rows", type=int, default=1)
+    t.add_argument("--height", type=float, default=1.5, help="위로 확보할 높이 (타일 수)")
+    t.add_argument("--scale", type=int, default=4)
+
     a = ap.parse_args()
     if a.cmd == "check":
         cmd_check(a.paths)
+    elif a.cmd == "template":
+        cmd_template(a.outdir, a.cols, a.rows, a.height, a.scale)
     else:
         cmd_pastel(a.paths, a.outdir, a.sat, a.lift, a.warm)
 
