@@ -129,6 +129,71 @@ def cmd_pastel(paths, outdir, sat, lift, warm):
         print("  ->", dst)
 
 
+def write_svg(path, cols, rows, W, H, ax, ay, scale):
+    """피그마/일러스트/잉크스케이프에 그대로 열리는 벡터 템플릿.
+
+    viewBox 단위 = 기본 단위(타일 64x32)라서, 도형 좌표를 그대로 읽어
+    ItemCatalog 의 ArtBox 값으로 옮길 수 있다.
+    """
+    TW, TH = 64.0, 32.0
+    fw, fh = cols * TW, rows * TH
+    ch = TW / 2  # 한 칸 높이
+
+    def dia(cx, cy, w, h):
+        return "%g,%g %g,%g %g,%g %g,%g" % (
+            cx, cy - h / 2, cx + w / 2, cy, cx, cy + h / 2, cx - w / 2, cy)
+
+    def line(a, b):
+        return '<line x1="%g" y1="%g" x2="%g" y2="%g"/>' % (a[0], a[1], b[0], b[1])
+
+    N = (ax, ay - TH / 2)
+    E = (ax + TW / 2, ay)
+    S = (ax, ay + TH / 2)
+    Wv = (ax - TW / 2, ay)
+
+    def up(p):
+        return (p[0], p[1] - ch)
+
+    cube = [line(Wv, S), line(S, E)]
+    cube += [line(p, up(p)) for p in (Wv, S, E)]
+    cube += [line(up(a), up(b)) for a, b in ((N, E), (E, S), (S, Wv), (Wv, N))]
+
+    # 2:1 기울기 안내선 (화면 각도 26.57도)
+    guides = []
+    for k in range(-4, 5):
+        oy = ay + k * TH
+        guides.append(line((0, oy + W / 4), (W, oy - W / 4)))
+        guides.append(line((0, oy - W / 4), (W, oy + W / 4)))
+
+    out = []
+    out.append('<svg xmlns="http://www.w3.org/2000/svg" width="%g" height="%g" viewBox="0 0 %g %g">'
+               % (W * scale, H * scale, W, H))
+    out.append('  <title>iso template %dx%d, tile 64x32 (2:1)</title>' % (cols, rows))
+    out.append('  <!-- viewBox 1 unit = base unit 1. ArtBox size=(%g,%g) anchor=(%g,%g) -->'
+               % (W, H, ax, ay))
+    out.append('  <g id="guides-angle" stroke="#c9d8ef" stroke-width="0.4" fill="none">')
+    out.append("    " + "".join(guides))
+    out.append('  </g>')
+    out.append('  <g id="reference-cube" stroke="#7aa0d8" stroke-width="0.7" fill="none">')
+    out.append("    " + "".join(cube))
+    out.append('  </g>')
+    out.append('  <g id="footprint">')
+    out.append('    <polygon points="%s" fill="#f5c6d3" fill-opacity="0.25" stroke="#e2547f" stroke-width="0.9"/>'
+               % dia(ax, ay, fw, fh))
+    out.append('  </g>')
+    out.append('  <g id="anchor" stroke="#ff2856" stroke-width="0.9">')
+    out.append("    " + line((ax - 3, ay), (ax + 3, ay)) + line((ax, ay - 3), (ax, ay + 3)))
+    out.append('  </g>')
+    out.append('  <g id="labels" font-family="sans-serif" font-size="3.4" fill="#555">')
+    out.append('    <text x="1.5" y="5">footprint %dx%d, tile 64x32 (2:1)</text>' % (cols, rows))
+    out.append('    <text x="1.5" y="10">ArtBox size = (%g, %g)</text>' % (W, H))
+    out.append('    <text x="1.5" y="15" fill="#e2547f">anchor = (%g, %g)</text>' % (ax, ay))
+    out.append('  </g>')
+    out.append('</svg>')
+    with open(path, "w", encoding="utf-8") as f:
+        f.write("\n".join(out) + "\n")
+
+
 def cmd_template(outdir, cols, rows, height_tiles, scale):
     """2D로 직접 그릴 때 밑에 깔 아이소메트릭 격자 템플릿.
 
@@ -213,10 +278,11 @@ def cmd_template(outdir, cols, rows, height_tiles, scale):
            fill=(200, 30, 70, 255))
 
     os.makedirs(outdir, exist_ok=True)
-    dst = os.path.join(outdir, "iso-template-%dx%d.png" % (cols, rows))
-    im.save(dst)
-    print("  ->", dst, im.size,
-          "| ArtBox size=(%d,%d) anchor=(%d,%d)" % (W / scale, H / scale, ax / scale, ay / scale))
+    base = os.path.join(outdir, "iso-template-%dx%d" % (cols, rows))
+    im.save(base + ".png")
+    write_svg(base + ".svg", cols, rows, W / scale, H / scale, ax / scale, ay / scale, scale)
+    print("  -> %s.png / .svg   ArtBox size=(%d,%d)  anchor=(%d,%d)"
+          % (base, W / scale, H / scale, ax / scale, ay / scale))
 
 
 def main():

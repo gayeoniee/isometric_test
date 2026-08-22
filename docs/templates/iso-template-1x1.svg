@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="588" viewBox="0 0 128 147">
+  <title>iso template 1x1, tile 64x32 (2:1)</title>
+  <!-- viewBox 1 unit = base unit 1. ArtBox size=(128,147) anchor=(64,121.4) -->
+  <g id="guides-angle" stroke="#c9d8ef" stroke-width="0.4" fill="none">
+    <line x1="0" y1="25.4" x2="128" y2="-38.6"/><line x1="0" y1="-38.6" x2="128" y2="25.4"/><line x1="0" y1="57.4" x2="128" y2="-6.6"/><line x1="0" y1="-6.6" x2="128" y2="57.4"/><line x1="0" y1="89.4" x2="128" y2="25.4"/><line x1="0" y1="25.4" x2="128" y2="89.4"/><line x1="0" y1="121.4" x2="128" y2="57.4"/><line x1="0" y1="57.4" x2="128" y2="121.4"/><line x1="0" y1="153.4" x2="128" y2="89.4"/><line x1="0" y1="89.4" x2="128" y2="153.4"/><line x1="0" y1="185.4" x2="128" y2="121.4"/><line x1="0" y1="121.4" x2="128" y2="185.4"/><line x1="0" y1="217.4" x2="128" y2="153.4"/><line x1="0" y1="153.4" x2="128" y2="217.4"/><line x1="0" y1="249.4" x2="128" y2="185.4"/><line x1="0" y1="185.4" x2="128" y2="249.4"/><line x1="0" y1="281.4" x2="128" y2="217.4"/><line x1="0" y1="217.4" x2="128" y2="281.4"/>
+  </g>
+  <g id="reference-cube" stroke="#7aa0d8" stroke-width="0.7" fill="none">
+    <line x1="32" y1="121.4" x2="64" y2="137.4"/><line x1="64" y1="137.4" x2="96" y2="121.4"/><line x1="32" y1="121.4" x2="32" y2="89.4"/><line x1="64" y1="137.4" x2="64" y2="105.4"/><line x1="96" y1="121.4" x2="96" y2="89.4"/><line x1="64" y1="73.4" x2="96" y2="89.4"/><line x1="96" y1="89.4" x2="64" y2="105.4"/><line x1="64" y1="105.4" x2="32" y2="89.4"/><line x1="32" y1="89.4" x2="64" y2="73.4"/>
+  </g>
+  <g id="footprint">
+    <polygon points="64,105.4 96,121.4 64,137.4 32,121.4" fill="#f5c6d3" fill-opacity="0.25" stroke="#e2547f" stroke-width="0.9"/>
+  </g>
+  <g id="anchor" stroke="#ff2856" stroke-width="0.9">
+    <line x1="61" y1="121.4" x2="67" y2="121.4"/><line x1="64" y1="118.4" x2="64" y2="124.4"/>
+  </g>
+  <g id="labels" font-family="sans-serif" font-size="3.4" fill="#555">
+    <text x="1.5" y="5">footprint 1x1, tile 64x32 (2:1)</text>
+    <text x="1.5" y="10">ArtBox size = (128, 147)</text>
+    <text x="1.5" y="15" fill="#e2547f">anchor = (64, 121.4)</text>
+  </g>
+</svg>
