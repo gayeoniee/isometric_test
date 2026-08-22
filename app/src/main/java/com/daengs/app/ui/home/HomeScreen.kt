@@ -13,6 +13,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -24,7 +27,9 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.daengs.app.miniroom.MiniRoomCanvas
 import com.daengs.app.miniroom.MiniRoomState
+import com.daengs.app.miniroom.RoomDefaults
 import com.daengs.app.miniroom.RoomTheme
+import com.daengs.app.miniroom.rememberRoomStore
 import com.daengs.app.miniroom.art.ItemCatalog
 import com.daengs.app.miniroom.art.rememberItemCatalog
 import com.daengs.app.miniroom.rememberMiniRoomState
@@ -56,11 +61,24 @@ fun HomeScreen(
     var topTab by rememberSaveable { mutableStateOf(TopTab.Home) }
     var bottomTab by rememberSaveable { mutableStateOf(BottomTab.Home) }
     var inventoryOpen by rememberSaveable { mutableStateOf(false) }
+
+    val store = rememberRoomStore()
     // 테마는 id 만 저장한다 — 원시값이라 화면 회전에도 그대로 남는다
-    var themeId by rememberSaveable { mutableStateOf(RoomTheme.DEFAULT.id) }
+    var themeId by rememberSaveable { mutableStateOf(store.loadThemeId() ?: RoomTheme.DEFAULT.id) }
     val roomTheme = RoomTheme.byId(themeId)
 
-    val roomState = rememberMiniRoomState()
+    // 저장된 배치가 있으면 그걸로 시작한다. 없거나 못 읽으면 기본 배치.
+    // rememberSaveable 이 화면 회전을, 이쪽이 앱 재시작을 담당한다.
+    val roomState = rememberMiniRoomState(
+        initial = remember { store.loadItems() ?: RoomDefaults.STARTER_ROOM },
+    )
+
+    // 배치가 바뀔 때마다 저장. 드래그는 놓을 때 한 번만 커밋되고 회전도 탭 한 번이라
+    // 쓰기가 잦지 않다. apply() 는 비동기라 UI 를 막지도 않는다.
+    LaunchedEffect(roomState, store) {
+        snapshotFlow { roomState.items.toList() }
+            .collect { store.saveItems(it) }
+    }
     val catalog = rememberItemCatalog()
 
     Scaffold(
@@ -114,7 +132,10 @@ fun HomeScreen(
                     available = { roomState.availableCount(it) },
                     onPick = { roomState.placeFromInventory(it, catalog) },
                     currentTheme = roomTheme,
-                    onPickTheme = { themeId = it.id },
+                    onPickTheme = {
+                        themeId = it.id
+                        store.saveThemeId(it.id)
+                    },
                     modifier = slot,
                 )
             } else {
