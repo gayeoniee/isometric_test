@@ -39,57 +39,41 @@ val ItemSpecs: Map<String, ItemArtSpec> = mapOf(
     ) { drawRug() },
 
     // anchor 는 "바닥에 닿는 점". 눕는 물건은 밑면 타원의 중심, 서는 물건은 맨 아랫점.
-    "ball" to ItemArtSpec.Shapes(
-        ArtBox(size = Size(24f, 30f), anchor = Offset(12f, 23f)),
-    ) { drawBall() },
 
     "bowl" to ItemArtSpec.Shapes(
         ArtBox(size = Size(40f, 30f), anchor = Offset(20f, 17f)),
     ) { drawBowl() },
 
+    // 침대는 flat 로 둔다 — 칸을 점유하지 않아 **강아지가 그 위에 앉을 수 있고**,
+    // 같은 칸에서 강아지보다 먼저(뒤에) 그려진다.
     "bed" to ItemArtSpec.Shapes(
-        ArtBox(size = Size(78f, 48f), anchor = Offset(39f, 30f)),
+        ArtBox(size = Size(78f, 48f), anchor = Offset(39f, 30f), flat = true),
     ) { drawBed() },
+
+    "desk" to ItemArtSpec.Shapes(
+        ArtBox(size = Size(72f, 66f), anchor = Offset(36f, 46f)),
+    ) { drawDesk() },
 
     "plant" to ItemArtSpec.Shapes(
         ArtBox(size = Size(44f, 96f), anchor = Offset(22f, 88f)),
     ) { drawPlant() },
 
-    "bone" to ItemArtSpec.Shapes(
-        ArtBox(size = Size(36f, 24f), anchor = Offset(18f, 13f)),
-    ) { drawBone() },
 
     "house" to ItemArtSpec.Shapes(
         ArtBox(size = Size(72f, 80f), anchor = Offset(36f, 62f)),
     ) { drawHouse() },
 
-    "toybox" to ItemArtSpec.Shapes(
-        ArtBox(size = Size(52f, 56f), anchor = Offset(26f, 40f)),
-    ) { drawToybox() },
 
     "waterbowl" to ItemArtSpec.Shapes(
         ArtBox(size = Size(40f, 30f), anchor = Offset(20f, 17f)),
     ) { drawWaterBowl() },
 
-    "cushion" to ItemArtSpec.Shapes(
-        ArtBox(size = Size(48f, 46f), anchor = Offset(24f, 30f)),
-    ) { drawCushion() },
 
-    "vase" to ItemArtSpec.Shapes(
-        ArtBox(size = Size(36f, 46f), anchor = Offset(18f, 40f)),
-    ) { drawVase() },
 
-    "blanket" to ItemArtSpec.Shapes(
-        ArtBox(size = Size(72f, 40f), anchor = Offset(36f, 20f), flat = true),
-    ) { drawBlanket() },
 
     // --- 에셋 파이프라인 검증용 (실제 PNG 를 쓰는 유일한 아이템들) ---
     // crate 는 toybox 와 ArtBox 가 **완전히 동일**하다. 나란히 놓고 발밑이 어긋나면
     // PNG 경로에 문제가 있다는 뜻이다.
-    "crate" to ItemArtSpec.Res(
-        ArtBox(size = Size(52f, 56f), anchor = Offset(26f, 40f)),
-        resId = R.drawable.crate_01,
-    ),
 
     "lantern" to ItemArtSpec.Sheet(
         box = ArtBox(size = Size(36f, 48f), anchor = Offset(18f, 44f)),
@@ -120,20 +104,14 @@ val ItemSpecs: Map<String, ItemArtSpec> = mapOf(
 
 /** 사람이 읽는 이름. 나중에 아이템 목록 UI 에서 쓴다. */
 val ItemLabels: Map<String, String> = mapOf(
-    "rug" to "러그",
-    "ball" to "공",
-    "bowl" to "밥그릇",
-    "bed" to "방석",
-    "plant" to "화분",
-    "bone" to "뼈다귀",
+    "rug" to "카펫",
+    "bed" to "침대",
+    "desk" to "책상",
     "house" to "강아지집",
-    "toybox" to "장난감함",
+    "bowl" to "밥그릇",
     "waterbowl" to "물그릇",
-    "cushion" to "쿠션",
-    "vase" to "꽃병",
-    "blanket" to "담요",
-    "crate" to "상자(PNG)",
-    "lantern" to "가로등(시트)",
+    "plant" to "화분",
+    "lantern" to "무드등",
     RoomDefaults.DOG_ID to "강아지",
 )
 

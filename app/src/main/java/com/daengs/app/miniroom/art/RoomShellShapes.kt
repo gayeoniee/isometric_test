@@ -10,6 +10,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipPath
 import com.daengs.app.miniroom.RoomGeometry
 import com.daengs.app.miniroom.RoomSpec
+import com.daengs.app.miniroom.RoomTheme
 import com.daengs.app.ui.theme.RoomPalette
 import kotlin.math.PI
 import kotlin.math.cos
@@ -65,14 +66,14 @@ private fun archOutline(
 
 // ---------------------------------------------------------------------------
 
-fun DrawScope.drawRoomShell(g: RoomGeometry) {
-    drawWalls(g)
-    drawWindow(g)
-    drawDoor(g)
-    drawFloor(g)
+fun DrawScope.drawRoomShell(g: RoomGeometry, t: RoomTheme) {
+    drawWalls(g, t)
+    drawWindow(g, t)
+    drawDoor(g, t)
+    drawFloor(g, t)
 }
 
-private fun DrawScope.drawWalls(g: RoomGeometry) {
+private fun DrawScope.drawWalls(g: RoomGeometry, t: RoomTheme) {
     val corner = g.origin
     val n = RoomSpec.GRID.toFloat()
     val leftBase = g.leftWallPoint(n, 0f)
@@ -89,7 +90,7 @@ private fun DrawScope.drawWalls(g: RoomGeometry) {
                 corner,
             )
         ),
-        RoomPalette.WallLeft,
+        t.wallLeft,
     )
     // 오른쪽 벽 — 시안대로 민무늬. 살짝 어둡게 해야 두 면이 갈라져 보인다.
     drawPath(
@@ -101,12 +102,12 @@ private fun DrawScope.drawWalls(g: RoomGeometry) {
                 corner,
             )
         ),
-        RoomPalette.WallRight,
+        t.wallRight,
     )
 
     // 안쪽 모서리 이음새 — 이게 없으면 두 벽이 한 면으로 보인다
     drawLine(
-        RoomPalette.WallShadow,
+        t.wallShadow,
         Offset(corner.x, corner.y - w),
         corner,
         strokeWidth = 1.5f * g.scale,
@@ -123,7 +124,7 @@ private fun DrawScope.drawWalls(g: RoomGeometry) {
                 Offset(corner.x, corner.y - w + trim),
             )
         ),
-        RoomPalette.WallTrim,
+        t.wallTrim,
     )
     drawPath(
         poly(
@@ -134,7 +135,7 @@ private fun DrawScope.drawWalls(g: RoomGeometry) {
                 Offset(corner.x, corner.y - w + trim),
             )
         ),
-        RoomPalette.WallTrim,
+        t.wallTrim,
     )
 
     // 걸레받이
@@ -148,7 +149,7 @@ private fun DrawScope.drawWalls(g: RoomGeometry) {
                 Offset(corner.x, corner.y - base),
             )
         ),
-        RoomPalette.WallTrim,
+        t.wallTrim,
     )
     drawPath(
         poly(
@@ -159,11 +160,11 @@ private fun DrawScope.drawWalls(g: RoomGeometry) {
                 Offset(corner.x, corner.y - base),
             )
         ),
-        RoomPalette.WallTrim,
+        t.wallTrim,
     )
 }
 
-private fun DrawScope.drawWindow(g: RoomGeometry) {
+private fun DrawScope.drawWindow(g: RoomGeometry, t: RoomTheme) {
     val u0 = 0.7f
     val u1 = 2.5f
     // 벽 높이의 30% ~ 72% — 가운데쯤에 오게. 예전엔 0.95 라 천장에 붙어 있었다.
@@ -180,7 +181,7 @@ private fun DrawScope.drawWindow(g: RoomGeometry) {
         archOutline(u0, u1, h0, h1, archH).map { g.leftWallPoint(it.first, it.second) }
     )
 
-    drawPath(outer, RoomPalette.WallTrim)
+    drawPath(outer, t.wallTrim)
 
     // 창밖 — 하늘 그라데이션 + 구름 + 벚나무
     clipPath(inner) {
@@ -233,18 +234,18 @@ private fun DrawScope.drawWindow(g: RoomGeometry) {
 
     // 창틀 격자 (십자)
     drawLine(
-        RoomPalette.WallTrim,
+        t.wallTrim,
         g.leftWallPoint((u0 + u1) / 2f, h1),
         g.leftWallPoint((u0 + u1) / 2f, h0),
         strokeWidth = 2.8f * g.scale,
     )
     drawLine(
-        RoomPalette.WallTrim,
+        t.wallTrim,
         g.leftWallPoint(u0, h0 + (h1 - h0) * 0.42f),
         g.leftWallPoint(u1, h0 + (h1 - h0) * 0.42f),
         strokeWidth = 2.8f * g.scale,
     )
-    drawPath(inner, RoomPalette.WallTrim, style = Stroke(width = 3.2f * g.scale))
+    drawPath(inner, t.wallTrim, style = Stroke(width = 3.2f * g.scale))
 
     // 창턱
     val sL = g.leftWallPoint(u0 - frame * 1.7f, h0 - 4f * g.scale)
@@ -258,11 +259,11 @@ private fun DrawScope.drawWindow(g: RoomGeometry) {
                 sL + Offset(0f, 4.5f * g.scale),
             )
         ),
-        RoomPalette.WallTrim,
+        t.wallTrim,
     )
 }
 
-private fun DrawScope.drawDoor(g: RoomGeometry) {
+private fun DrawScope.drawDoor(g: RoomGeometry, t: RoomTheme) {
     val u0 = 3.5f
     val u1 = 5.0f
     val h1 = g.wallPx * 0.66f
@@ -277,17 +278,17 @@ private fun DrawScope.drawDoor(g: RoomGeometry) {
         archOutline(u0, u1, 0f, h1, archH).map { g.leftWallPoint(it.first, it.second) }
     )
 
-    drawPath(outer, RoomPalette.DoorTrim)
-    drawPath(inner, RoomPalette.DoorFill)
+    drawPath(outer, t.doorTrim)
+    drawPath(inner, t.doorFill)
 
     // 문에 새긴 발바닥
     drawPawStamp(
         g.leftWallPoint((u0 + u1) / 2f, h1 * 0.60f),
         8f * g.scale,
-        RoomPalette.DoorTrim,
+        t.doorTrim,
     )
     // 손잡이
-    drawCircle(RoomPalette.DoorKnob, 3.4f * g.scale, g.leftWallPoint(u1 - 0.24f, h1 * 0.32f))
+    drawCircle(t.doorKnob, 3.4f * g.scale, g.leftWallPoint(u1 - 0.24f, h1 * 0.32f))
 }
 
 /** 발바닥 도장 — 문·울타리·아이콘에서 재사용. */
@@ -307,7 +308,7 @@ fun DrawScope.drawPawStamp(center: Offset, r: Float, color: Color) {
     }
 }
 
-private fun DrawScope.drawFloor(g: RoomGeometry) {
+private fun DrawScope.drawFloor(g: RoomGeometry, t: RoomTheme) {
     val n = RoomSpec.GRID.toFloat()
     val top = g.toScreenF(0f, 0f)
     val right = g.toScreenF(n, 0f)
@@ -315,13 +316,13 @@ private fun DrawScope.drawFloor(g: RoomGeometry) {
     val left = g.toScreenF(0f, n)
     val floor = poly(listOf(top, right, bottom, left))
 
-    drawPath(floor, RoomPalette.FloorLight)
+    drawPath(floor, t.floorLight)
 
     clipPath(floor) {
         // 나뭇결 — row 가 일정한 선을 따라 널을 깐다
         for (r in 0..RoomSpec.GRID) {
             drawLine(
-                RoomPalette.FloorPlank.copy(alpha = 0.34f),
+                t.floorPlank.copy(alpha = 0.34f),
                 g.toScreenF(0f, r.toFloat()),
                 g.toScreenF(n, r.toFloat()),
                 strokeWidth = 1.2f * g.scale,
@@ -332,8 +333,8 @@ private fun DrawScope.drawFloor(g: RoomGeometry) {
             floor,
             Brush.verticalGradient(
                 listOf(
-                    RoomPalette.FloorDark.copy(alpha = 0f),
-                    RoomPalette.FloorDark.copy(alpha = 0.45f),
+                    t.floorDark.copy(alpha = 0f),
+                    t.floorDark.copy(alpha = 0.45f),
                 ),
                 startY = top.y,
                 endY = bottom.y,
@@ -342,7 +343,7 @@ private fun DrawScope.drawFloor(g: RoomGeometry) {
         // 격자를 아주 옅게 — 배치 데모라 한 칸이 어디까진지 보이는 편이 낫다
         for (c in 0..RoomSpec.GRID) {
             drawLine(
-                RoomPalette.FloorPlank.copy(alpha = 0.15f),
+                t.floorPlank.copy(alpha = 0.15f),
                 g.toScreenF(c.toFloat(), 0f),
                 g.toScreenF(c.toFloat(), n),
                 strokeWidth = 1f * g.scale,
@@ -363,16 +364,16 @@ private fun DrawScope.drawFloor(g: RoomGeometry) {
                 left + Offset(0f, lip),
             )
         ),
-        RoomPalette.FloorEdge,
+        t.floorEdge,
     )
-    drawPath(floor, RoomPalette.FloorEdge.copy(alpha = 0.9f), style = Stroke(width = 2f * g.scale))
+    drawPath(floor, t.floorEdge.copy(alpha = 0.9f), style = Stroke(width = 2f * g.scale))
 }
 
 /**
  * 울타리. 바닥 앞쪽 모서리에 서므로 아이템보다 **뒤에** 그리면 안 된다 —
  * 방 껍데기가 아니라 아이템을 다 그린 뒤에 호출한다.
  */
-fun DrawScope.drawFence(g: RoomGeometry) {
+fun DrawScope.drawFence(g: RoomGeometry, t: RoomTheme) {
     val postH = 26f * g.scale
     val from = 2.2f
     val to = 5.4f
@@ -380,7 +381,7 @@ fun DrawScope.drawFence(g: RoomGeometry) {
 
     listOf(0.45f, 0.78f).forEach { frac ->
         drawLine(
-            RoomPalette.FenceFill,
+            t.fenceFill,
             g.frontRailPoint(from, postH * frac),
             g.frontRailPoint(to, postH * frac),
             strokeWidth = 4.5f * g.scale,
@@ -389,16 +390,16 @@ fun DrawScope.drawFence(g: RoomGeometry) {
     for (i in 0 until posts) {
         val v = from + (to - from) * i / (posts - 1f)
         drawLine(
-            RoomPalette.FenceFill,
+            t.fenceFill,
             g.frontRailPoint(v, 0f),
             g.frontRailPoint(v, postH),
             strokeWidth = 6.5f * g.scale,
         )
-        drawCircle(RoomPalette.FenceTrim, 3.4f * g.scale, g.frontRailPoint(v, postH))
+        drawCircle(t.fenceTrim, 3.4f * g.scale, g.frontRailPoint(v, postH))
     }
     drawPawStamp(
         g.frontRailPoint((from + to) / 2f, postH * 0.6f),
         4.4f * g.scale,
-        RoomPalette.FenceTrim,
+        t.fenceTrim,
     )
 }

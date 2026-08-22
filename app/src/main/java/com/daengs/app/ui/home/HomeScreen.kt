@@ -24,6 +24,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.daengs.app.miniroom.MiniRoomCanvas
 import com.daengs.app.miniroom.MiniRoomState
+import com.daengs.app.miniroom.RoomTheme
 import com.daengs.app.miniroom.art.ItemCatalog
 import com.daengs.app.miniroom.art.rememberItemCatalog
 import com.daengs.app.miniroom.rememberMiniRoomState
@@ -55,6 +56,9 @@ fun HomeScreen(
     var topTab by rememberSaveable { mutableStateOf(TopTab.Home) }
     var bottomTab by rememberSaveable { mutableStateOf(BottomTab.Home) }
     var inventoryOpen by rememberSaveable { mutableStateOf(false) }
+    // 테마는 id 만 저장한다 — 원시값이라 화면 회전에도 그대로 남는다
+    var themeId by rememberSaveable { mutableStateOf(RoomTheme.DEFAULT.id) }
+    val roomTheme = RoomTheme.byId(themeId)
 
     val roomState = rememberMiniRoomState()
     val catalog = rememberItemCatalog()
@@ -98,6 +102,7 @@ fun HomeScreen(
                 frameTimeMs = frameTimeMs,
                 inventoryOpen = inventoryOpen,
                 onToggleInventory = { inventoryOpen = !inventoryOpen },
+                theme = roomTheme,
                 modifier = Modifier.fillMaxWidth().weight(1f),
             )
             // 인벤토리를 방 위에 겹치면 바닥을 가려서 방금 놓은 물건이 안 보인다.
@@ -108,6 +113,8 @@ fun HomeScreen(
                     catalog = catalog,
                     available = { roomState.availableCount(it) },
                     onPick = { roomState.placeFromInventory(it, catalog) },
+                    currentTheme = roomTheme,
+                    onPickTheme = { themeId = it.id },
                     modifier = slot,
                 )
             } else {
@@ -128,6 +135,7 @@ private fun RoomSection(
     frameTimeMs: Long?,
     inventoryOpen: Boolean,
     onToggleInventory: () -> Unit,
+    theme: RoomTheme,
     modifier: Modifier = Modifier,
 ) {
     // @Preview 안에서는 무한 애니메이션이 돌지 않아 프레임 0 에 얼어붙는다.
@@ -138,6 +146,7 @@ private fun RoomSection(
         MiniRoomCanvas(
             state = state,
             catalog = catalog,
+            theme = theme,
             modifier = Modifier.fillMaxSize(),
             frameTimeMs = frameTimeMs ?: previewFrame,
             // 톡 누르면 방향 돌리기. 치우기는 "방 밖으로 끌어내기"로 분리했다 —

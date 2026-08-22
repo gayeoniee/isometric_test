@@ -65,19 +65,12 @@ object RoomDefaults {
      */
     val OWNED: Map<String, Int> = mapOf(
         "rug" to 1,
-        "blanket" to 1,
         "bed" to 1,
-        "cushion" to 2,
+        "desk" to 1,
+        "house" to 1,
         "bowl" to 1,
         "waterbowl" to 1,
-        "ball" to 2,
-        "bone" to 2,
         "plant" to 2,
-        "vase" to 1,
-        "house" to 1,
-        "toybox" to 1,
-        // 에셋 파이프라인 검증용
-        "crate" to 2,
         "lantern" to 2,
     )
 
@@ -87,11 +80,14 @@ object RoomDefaults {
     /** 시안 배치를 대충 흉내 낸 초기 상태. 전부 하드코딩 — 백엔드 없음. */
     val STARTER_ROOM: List<PlacedItem> = listOf(
         PlacedItem(1L, "plant", 5, 0),
-        PlacedItem(2L, "bowl", 4, 1),
+        PlacedItem(2L, "desk", 4, 1),
+        // 러그 -> 침대 -> 강아지 순서로 같은 칸에 겹친다.
+        // 셋 다 (2,2) 이고 레이어가 달라서 강아지가 침대 위에 앉은 것처럼 보인다.
         PlacedItem(3L, "rug", 2, 2),
-        PlacedItem(4L, DOG_ID, 2, 2),
-        PlacedItem(5L, "ball", 3, 2),
-        PlacedItem(6L, "bed", 0, 4),
-        PlacedItem(7L, "bone", 4, 4),
+        PlacedItem(4L, "bed", 2, 2),
+        PlacedItem(5L, DOG_ID, 2, 2),
+        PlacedItem(6L, "bowl", 4, 3),
+        PlacedItem(7L, "waterbowl", 5, 3),
+        PlacedItem(8L, "lantern", 0, 1),
     )
 }

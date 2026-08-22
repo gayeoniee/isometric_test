@@ -33,6 +33,7 @@ import kotlin.coroutines.cancellation.CancellationException
 fun MiniRoomCanvas(
     state: MiniRoomState,
     catalog: ItemCatalog,
+    theme: RoomTheme = RoomTheme.DEFAULT,
     modifier: Modifier = Modifier,
     frameTimeMs: Long? = null,
     onItemTap: ((PlacedItem) -> Unit)? = null,
@@ -99,7 +100,7 @@ fun MiniRoomCanvas(
                 val t = frameTimeMs ?: clock.value
                 val d = state.drag
 
-                drawRoomShell(g)
+                drawRoomShell(g, theme)
 
                 if (d != null) {
                     val dragged = state.items.firstOrNull { it.instanceId == d.instanceId }
@@ -128,7 +129,7 @@ fun MiniRoomCanvas(
                 }
 
                 // 2) 울타리는 바닥 앞쪽 모서리에 서므로 아이템보다 뒤에 그리면 안 된다.
-                drawFence(g)
+                drawFence(g, theme)
 
                 // 3) 강아지 — 울타리보다도 앞. 주인공이라 무엇에도 가리지 않는다.
                 for (item in order) {

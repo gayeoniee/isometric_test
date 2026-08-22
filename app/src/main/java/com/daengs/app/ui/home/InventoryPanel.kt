@@ -20,11 +20,17 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.text.font.FontWeight
@@ -34,6 +40,7 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.daengs.app.miniroom.RoomDefaults
+import com.daengs.app.miniroom.RoomTheme
 import com.daengs.app.miniroom.art.ItemArt
 import com.daengs.app.miniroom.art.ItemCatalog
 import com.daengs.app.miniroom.art.ItemLabels
@@ -61,8 +68,11 @@ fun InventoryPanel(
     catalog: ItemCatalog,
     available: (String) -> Int,
     onPick: (String) -> Unit,
+    currentTheme: RoomTheme,
+    onPickTheme: (RoomTheme) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    var tab by rememberSaveable { mutableStateOf(0) }
     Surface(
         color = CardWhite,
         shape = RoundedCornerShape(22.dp),
@@ -74,24 +84,31 @@ fun InventoryPanel(
             verticalArrangement = Arrangement.Center,
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("아이템", color = TextDark, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                TabChip("아이템", tab == 0) { tab = 0 }
                 Spacer(Modifier.width(6.dp))
-                Text("톡 누르면 놓이고, 방에서 톡 누르면 돌아와요", color = TextMuted, fontSize = 9.sp)
+                TabChip("테마", tab == 1) { tab = 1 }
+                Spacer(Modifier.width(9.dp))
+                Text(
+                    if (tab == 0) "톡 누르면 놓이고, 방에서 톡 누르면 돌아와요" else "방 색을 바꿔요",
+                    color = TextMuted,
+                    fontSize = 9.sp,
+                )
             }
-            Spacer(Modifier.height(5.dp))
+            Spacer(Modifier.height(6.dp))
             Row(
                 Modifier.horizontalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                RoomDefaults.INVENTORY_ORDER.forEach { id ->
-                    val art = catalog[id]
-                    if (art != null) {
-                        InventorySlot(
-                            id = id,
-                            art = art,
-                            count = available(id),
-                            onClick = { onPick(id) },
-                        )
+                if (tab == 0) {
+                    RoomDefaults.INVENTORY_ORDER.forEach { id ->
+                        val art = catalog[id]
+                        if (art != null) {
+                            InventorySlot(id, art, available(id)) { onPick(id) }
+                        }
+                    }
+                } else {
+                    RoomTheme.ALL.forEach { th ->
+                        ThemeSwatch(th, th.id == currentTheme.id) { onPickTheme(th) }
                     }
                 }
             }
@@ -202,6 +219,82 @@ private fun InventoryPanelPreview() {
             catalog = com.daengs.app.miniroom.art.rememberItemCatalog(),
             available = { if (it == "rug") 0 else 2 },
             onPick = {},
+            currentTheme = RoomTheme.DEFAULT,
+            onPickTheme = {},
+        )
+    }
+}
+
+@Composable
+private fun TabChip(label: String, selected: Boolean, onClick: () -> Unit) {
+    Surface(
+        shape = RoundedCornerShape(50),
+        color = if (selected) DaengPink else PinkFaint,
+        modifier = Modifier.clip(RoundedCornerShape(50)).clickable(onClick = onClick),
+    ) {
+        Text(
+            label,
+            color = if (selected) CardWhite else TextMuted,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(horizontal = 11.dp, vertical = 4.dp),
+        )
+    }
+}
+
+/**
+ * 테마 미리보기.
+ *
+ * 색 동그라미만 보여주면 벽/바닥/포인트가 실제로 어떻게 어울리는지 알 수 없어서,
+ * 방 모양 그대로 축소해 그린다. 방과 **같은 아이소메트릭 비율**을 쓴다.
+ */
+@Composable
+private fun ThemeSwatch(theme: RoomTheme, selected: Boolean, onClick: () -> Unit) {
+    Column(
+        Modifier
+            .width(60.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .clickable(onClick = onClick)
+            .background(if (selected) PinkSoft else PinkFaint)
+            .padding(vertical = 7.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Canvas(Modifier.size(46.dp, 40.dp)) {
+            val tw = size.width * 0.88f
+            val th = tw / 2f
+            val wallH = th * 1.15f
+            val cx = size.width / 2f
+            val oy = size.height * 0.34f
+
+            fun poly(p: List<Offset>) = Path().apply {
+                moveTo(p[0].x, p[0].y)
+                p.drop(1).forEach { lineTo(it.x, it.y) }
+                close()
+            }
+
+            val top = Offset(cx, oy)
+            val right = Offset(cx + tw / 2f, oy + th / 2f)
+            val bottom = Offset(cx, oy + th)
+            val left = Offset(cx - tw / 2f, oy + th / 2f)
+
+            drawPath(poly(listOf(top, left, left - Offset(0f, wallH), top - Offset(0f, wallH))), theme.wallLeft)
+            drawPath(poly(listOf(top, right, right - Offset(0f, wallH), top - Offset(0f, wallH))), theme.wallRight)
+            drawPath(poly(listOf(top, right, bottom, left)), theme.floorLight)
+            // 문 — 포인트 색이 어디에 쓰이는지 보이게
+            val dx = cx - tw * 0.28f
+            drawRoundRect(
+                theme.doorFill,
+                Offset(dx, oy + th * 0.12f - wallH * 0.72f),
+                Size(tw * 0.16f, wallH * 0.62f),
+                androidx.compose.ui.geometry.CornerRadius(tw * 0.08f, tw * 0.08f),
+            )
+        }
+        Spacer(Modifier.height(3.dp))
+        Text(
+            theme.label,
+            color = if (selected) DaengPinkDeep else TextDark,
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Medium,
         )
     }
 }
