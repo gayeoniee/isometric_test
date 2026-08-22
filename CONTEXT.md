@@ -301,12 +301,35 @@ Android Studio가 자동 감지
 연결된 폰에 바로 설치·실행
 ```
 
+### 팀 규칙 — 파이썬은 uv 로 통일
+`pip` 를 쓰지 않는다. 스크립트는 PEP 723 인라인 의존성을 달아두고 `uv run` 으로 실행한다.
+
+```
+uv run tools/isoasset.py check 에셋/*.png
+```
+
+의존성이 스크립트 안에 적혀 있어서 가상환경을 만들거나 따로 설치할 필요가 없다.
+(백엔드 FastAPI 도 같은 규칙을 따를 것)
+
+### 자바 버전 — 따로 설치할 것 없음
+Android Studio 에 들어있는 JBR(25) 을 Gradle 데몬이 그대로 쓴다.
+`~/.gradle/jdks` 가 비어 있는 게 그 증거. 새 PC 에서도 **Android Studio + Git** 만 깔면 된다.
+
+헷갈리기 쉬운 숫자들:
+| 항목 | 값 | 뜻 |
+|---|---|---|
+| minSdk | 26 | 안드로이드 8.0 이상에서 설치 가능 |
+| compileSdk / targetSdk | 37 | 최신 안드로이드에 맞춰 빌드 |
+| JDK (Gradle 데몬) | 25 | 빌드를 돌리는 자바 |
+| Java 소스 레벨 | 11 | 코드가 컴파일되는 문법 수준 |
+
 ### Claude Code가 지켜야 할 것
 - 빌드 확인은 `./gradlew assembleDebug`
 - 기기 설치는 `./gradlew installDebug`
 - **APK를 따로 만들어 옮기는 방식은 사용하지 않음** (팀 배포 시에만 필요)
 - Compose **Live Edit**이 동작하도록 프로젝트를 구성할 것
 - 모든 주요 Composable에 `@Preview` 추가 (Android Studio 미리보기용)
+- 파이썬 도구는 `uv run` 으로 실행 (위 팀 규칙)
 
 ### 세션 운용 (참고)
 - PC를 켜둔 상태로 VS Code에서 `/remote-control` 실행 → 폰에서 이어서 지시 가능

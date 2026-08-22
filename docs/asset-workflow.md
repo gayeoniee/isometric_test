@@ -14,9 +14,13 @@
 템플릿은 아래 명령으로 원하는 발자국 크기만큼 다시 만들 수 있다.
 
 ```
-python tools/isoasset.py template --cols 1 --rows 1 --height 1.5
-python tools/isoasset.py template --cols 2 --rows 2 --height 0.8
+uv run tools/isoasset.py template --cols 1 --rows 1 --height 1.5
+uv run tools/isoasset.py template --cols 2 --rows 2 --height 0.8
 ```
+
+> 파이썬은 **uv 로 통일**한다 (팀 규칙). 스크립트 안에 의존성이 선언돼 있어서
+> `uv run` 이 알아서 받아 쓴다 — 가상환경을 만들거나 따로 설치할 필요가 없다.
+> uv 가 없으면 https://docs.astral.sh/uv 에서 설치.
 
 3D 로 만들고 싶다면 아래 1번의 카메라 값대로 렌더하면 된다. 여러 방향(4장)이 필요하거나
 조명을 일정하게 맞추고 싶을 때는 3D 쪽이 낫다.
@@ -92,14 +96,14 @@ iso-template-2x2  ->  ArtBox size = (192, 134),  anchor = (96, 92)
 
 다른 발자국 크기가 필요하면:
 ```
-python tools/isoasset.py template --cols 2 --rows 1 --height 1.2
+uv run tools/isoasset.py template --cols 2 --rows 1 --height 1.2
 ```
 실행하면 그 템플릿의 `ArtBox size` 와 `anchor` 를 찍어준다.
 
 ### 다 그린 뒤
 
 1. PNG 를 `app/src/main/res/drawable-nodpi/` 에 넣는다 (파일명은 소문자·숫자·밑줄만)
-2. 각도 확인: `python tools/isoasset.py check app/src/main/res/drawable-nodpi/내파일.png`
+2. 각도 확인: `uv run tools/isoasset.py check app/src/main/res/drawable-nodpi/내파일.png`
    → `타일 2.00:1 맞음` 이 나와야 한다
 3. `ItemCatalog.kt` 에서 해당 줄을 `Shapes` → `Res` 로 교체 (6번 섹션 참고)
 4. 실기기에서 격자에 앉는지 확인
@@ -205,7 +209,7 @@ Kenney Furniture Kit에는 `Isometric/` 폴더에 **140종 × 4방향(NE/NW/SE/S
 받아온 스프라이트는 아래 명령으로 바로 잴 수 있다.
 
 ```
-python tools/isoasset.py check 받은에셋/*.png
+uv run tools/isoasset.py check 받은에셋/*.png
 ```
 
 ---
@@ -291,7 +295,7 @@ python tools/isoasset.py check 받은에셋/*.png
 받은 에셋을 우리 톤으로 바꾸는 건 스크립트 한 번이면 된다.
 
 ```
-python tools/isoasset.py pastel 받은에셋/*.png -o app/src/main/res/drawable-nodpi
+uv run tools/isoasset.py pastel 받은에셋/*.png -o app/src/main/res/drawable-nodpi
 ```
 
 채도를 낮추고 명도를 올려서 파스텔로 만든다. 세기 조절:

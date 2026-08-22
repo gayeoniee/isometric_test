@@ -1,14 +1,21 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+# /// script
+# requires-python = ">=3.10"
+# dependencies = ["pillow", "numpy"]
+# ///
 """
 미니룸 에셋 도우미.
 
   check   : 스프라이트가 우리 격자(2:1)에 맞는 각도인지 측정
   pastel  : 채도를 낮추고 명도를 올려 파스텔로 리컬러
 
-사용 예
-  python tools/isoasset.py check  assets/*.png
-  python tools/isoasset.py pastel assets/*.png -o app/src/main/res/drawable-nodpi
+사용 예 (팀 규칙: 파이썬은 uv 로 통일)
+  uv run tools/isoasset.py check  assets/*.png
+  uv run tools/isoasset.py pastel assets/*.png -o app/src/main/res/drawable-nodpi
+
+위 /// script 블록에 의존성이 적혀 있어서, uv run 이 알아서 받아 쓴다.
+가상환경을 따로 만들거나 설치할 필요가 없다.
 
 직교 투영 기하 (이걸 알아야 check 결과를 읽을 수 있다)
   지면 축의 화면 기울기 = sin(고도각)
