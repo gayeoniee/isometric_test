@@ -1,0 +1,135 @@
+package com.daengs.app.miniroom
+
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.scale
+import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.daengs.app.miniroom.art.ItemArtSpec
+import com.daengs.app.miniroom.art.ItemLabels
+import com.daengs.app.miniroom.art.ItemSpecs
+import com.daengs.app.miniroom.art.rememberItemCatalog
+import com.daengs.app.ui.theme.CreamBg
+import com.daengs.app.ui.theme.DaengsTheme
+import com.daengs.app.ui.theme.TextMuted
+
+@Preview(widthDp = 411, heightDp = 380, showBackground = true, backgroundColor = 0xFFFDF1EC)
+@Composable
+private fun MiniRoomCanvasPreview() {
+    DaengsTheme {
+        MiniRoomCanvas(
+            state = rememberMiniRoomState(),
+            catalog = rememberItemCatalog(),
+            modifier = Modifier.fillMaxWidth().aspectRatio(RoomSpec.ASPECT),
+            // 무한 애니메이션은 미리보기에서 안 돌기 때문에 프레임을 찍어준다
+            frameTimeMs = 400L,
+        )
+    }
+}
+
+@Preview(widthDp = 320, heightDp = 320, showBackground = true, backgroundColor = 0xFFFDF1EC)
+@Composable
+private fun MiniRoomCanvasSmallPreview() {
+    DaengsTheme {
+        MiniRoomCanvas(
+            state = rememberMiniRoomState(),
+            catalog = rememberItemCatalog(),
+            modifier = Modifier.fillMaxWidth().aspectRatio(RoomSpec.ASPECT),
+            frameTimeMs = 900L,
+        )
+    }
+}
+
+/**
+ * 아트 시트 — 카탈로그의 모든 도형을 확대해서 ArtBox 윤곽선·기준점과 함께 늘어놓는다.
+ *
+ * 도형을 손볼 때 이 미리보기만 보면 되므로 왕복이 짧아지고,
+ * 기준점(anchor)을 잘못 잡은 아트가 눈에 바로 띈다.
+ * 십자 표시가 바닥에 닿는 점 = 타일 중심에 놓이는 지점이다.
+ */
+@Preview(widthDp = 411, heightDp = 460, showBackground = true)
+@Composable
+private fun ArtSheetPreview() {
+    val zoom = 1.7f
+    DaengsTheme {
+        Column(
+            Modifier.background(CreamBg).padding(10.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            ItemSpecs.entries.chunked(3).forEach { rowSpecs ->
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    rowSpecs.forEach { (id, spec) ->
+                        Column(Modifier.size(125.dp, 140.dp)) {
+                            Text(
+                                "${ItemLabels[id] ?: id}  ${spec.box.size.width.toInt()}x${spec.box.size.height.toInt()}",
+                                fontSize = 9.sp,
+                                color = TextMuted,
+                            )
+                            Canvas(Modifier.size(125.dp, 128.dp)) {
+                                // 체커보드 — 투명 영역과 흰 아트를 구분하기 위해
+                                val c = 8f
+                                var y = 0f
+                                var r = 0
+                                while (y < size.height) {
+                                    var x = 0f
+                                    var q = r
+                                    while (x < size.width) {
+                                        if (q % 2 == 0) {
+                                            drawRect(
+                                                Color(0xFFEDEDED),
+                                                Offset(x, y),
+                                                Size(c, c),
+                                            )
+                                        }
+                                        x += c; q++
+                                    }
+                                    y += c; r++
+                                }
+
+                                val box = spec.box
+                                val ox = (size.width - box.size.width * zoom) / 2f
+                                val oy = (size.height - box.size.height * zoom) / 2f
+                                translate(ox, oy) {
+                                    scale(zoom, zoom, pivot = Offset.Zero) {
+                                        when (spec) {
+                                            is ItemArtSpec.Shapes -> spec.draw(this, 2)
+                                            is ItemArtSpec.Sheet -> spec.fallback(this, 2)
+                                            is ItemArtSpec.Res -> Unit
+                                        }
+                                    }
+                                    // ArtBox 윤곽선
+                                    drawRect(
+                                        Color(0x553355FF),
+                                        Offset.Zero,
+                                        Size(box.size.width * zoom, box.size.height * zoom),
+                                        style = Stroke(1f),
+                                    )
+                                    // 기준점 십자
+                                    val a = Offset(box.anchor.x * zoom, box.anchor.y * zoom)
+                                    drawLine(Color(0xAAFF3366), a - Offset(6f, 0f), a + Offset(6f, 0f))
+                                    drawLine(Color(0xAAFF3366), a - Offset(0f, 6f), a + Offset(0f, 6f))
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

@@ -1,0 +1,151 @@
+package com.daengs.app.ui.home
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.daengs.app.ui.DaengsIcon
+import com.daengs.app.ui.DaengsIconView
+import com.daengs.app.ui.dashEffect
+import com.daengs.app.ui.theme.CardWhite
+import com.daengs.app.ui.theme.DaengPink
+import com.daengs.app.ui.theme.DaengPinkDeep
+import com.daengs.app.ui.theme.DaengsTheme
+import com.daengs.app.ui.theme.PinkFaint
+import com.daengs.app.ui.theme.PinkSoft
+import com.daengs.app.ui.theme.TextDark
+import com.daengs.app.ui.theme.TextMuted
+
+private val StatAccent = listOf(
+    Color(0xFFF2B441),
+    Color(0xFFEE8F5A),
+    Color(0xFFEE7FA0),
+)
+
+@Composable
+fun WalkSummaryCard(modifier: Modifier = Modifier) {
+    Surface(
+        shape = RoundedCornerShape(22.dp),
+        color = CardWhite,
+        modifier = modifier.fillMaxWidth(),
+    ) {
+        Column(Modifier.padding(horizontal = 16.dp, vertical = 11.dp)) {
+
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    HomeDemoData.WALK_TITLE,
+                    color = TextDark,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 17.sp,
+                )
+                Spacer(Modifier.width(6.dp))
+                DaengsIconView(DaengsIcon.Paw, Modifier.size(15.dp), tint = DaengPink)
+            }
+
+            Spacer(Modifier.height(10.dp))
+
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    Modifier
+                        .weight(1f)
+                        .background(PinkFaint, RoundedCornerShape(18.dp))
+                        .padding(vertical = 12.dp, horizontal = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                ) {
+                    HomeDemoData.WALK_STATS.forEachIndexed { i, stat ->
+                        StatItem(stat, StatAccent[i % StatAccent.size])
+                    }
+                }
+                Spacer(Modifier.width(11.dp))
+                DailyWordNote(Modifier.weight(1f))
+            }
+        }
+    }
+}
+
+@Composable
+private fun StatItem(stat: HomeDemoData.WalkStat, accent: Color) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        DaengsIconView(stat.icon, Modifier.size(24.dp), tint = accent)
+        Spacer(Modifier.height(6.dp))
+        Text(stat.value, color = TextDark, fontWeight = FontWeight.Bold, fontSize = 17.sp)
+        Spacer(Modifier.height(1.dp))
+        Text(stat.label, color = TextMuted, fontSize = 11.sp)
+    }
+}
+
+/** 시안의 압정으로 꽂은 메모지. */
+@Composable
+private fun DailyWordNote(modifier: Modifier = Modifier) {
+    Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
+        Box(
+            Modifier
+                .size(width = 15.dp, height = 13.dp)
+                .background(DaengPink, RoundedCornerShape(4.dp)),
+        )
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .background(CardWhite, RoundedCornerShape(14.dp))
+                .drawBehind {
+                    drawRoundRect(
+                        color = PinkSoft,
+                        topLeft = Offset(2f, 2f),
+                        size = Size(size.width - 4f, size.height - 4f),
+                        cornerRadius = CornerRadius(14.dp.toPx(), 14.dp.toPx()),
+                        style = Stroke(width = 2.5f, pathEffect = dashEffect()),
+                    )
+                }
+                .padding(horizontal = 13.dp, vertical = 12.dp),
+        ) {
+            Column {
+                Text(
+                    HomeDemoData.DAILY_WORD_TITLE,
+                    color = TextMuted,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Medium,
+                )
+                Spacer(Modifier.height(6.dp))
+                HomeDemoData.DAILY_WORD_LINES.forEach {
+                    Text(it, color = DaengPinkDeep, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                }
+            }
+            DaengsIconView(
+                DaengsIcon.Heart,
+                Modifier.size(17.dp).align(Alignment.BottomEnd),
+                tint = DaengPink,
+            )
+        }
+    }
+}
+
+@Preview(widthDp = 411, showBackground = true, backgroundColor = 0xFFFDF1EC)
+@Composable
+private fun WalkSummaryCardPreview() {
+    DaengsTheme {
+        WalkSummaryCard(Modifier.padding(14.dp))
+    }
+}
