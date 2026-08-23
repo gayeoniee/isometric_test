@@ -12,6 +12,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.input.pointer.pointerInput
@@ -47,9 +48,14 @@ fun MiniRoomCanvas(
     catalog: ItemCatalog,
     theme: RoomTheme = RoomTheme.DEFAULT,
     modifier: Modifier = Modifier,
+    herd: DogHerd? = null,
+    /** 편집 모드 = 가구를 만지는 중. 강아지는 확 숨고 터치도 가구만 받는다. */
+    editing: Boolean = false,
     frameTimeMs: Long? = null,
     onItemTap: ((PlacedItem) -> Unit)? = null,
     onDoorOpened: (() -> Unit)? = null,
+    /** 편집 모드에서 빈 곳을 눌렀을 때. 선택 해제용. */
+    onEmptyTap: (() -> Unit)? = null,
     doorOpenOverride: Float? = null,
 ) {
     val clock = rememberFrameClock()
@@ -60,6 +66,11 @@ fun MiniRoomCanvas(
     val doorCallback by rememberUpdatedState(onDoorOpened)
     // 여는 중에 또 눌러도 애니메이션이 겹치지 않게 Job 하나로 관리한다
     val doorJob = remember { arrayOfNulls<Job>(1) }
+
+    // 배회는 프레임 시계에 맞춰 갱신한다. 그리기와 같은 시각을 쓰므로 어긋나지 않는다.
+    if (herd != null && !editing && frameTimeMs == null) {
+        herd.update(clock.value)
+    }
 
     fun openDoor() {
         if (doorJob[0]?.isActive == true) return
@@ -76,6 +87,7 @@ fun MiniRoomCanvas(
     // 제스처 코루틴이 매번 재시작되고, 끌던 중이면 그대로 죽는다.
     // 키는 Boolean 으로 고정하고 콜백은 최신 것을 읽는다.
     val tapHandler by rememberUpdatedState(onItemTap)
+    val emptyTapHandler by rememberUpdatedState(onEmptyTap)
     val tapEnabled = onItemTap != null
 
     Spacer(
@@ -87,8 +99,53 @@ fun MiniRoomCanvas(
                     val down = awaitFirstDown(requireUnconsumed = true)
                     val g = RoomGeometry.of(size.width.toFloat(), size.height.toFloat())
 
-                    // 아이템이 먼저다. 문 앞에 놓인 물건을 누르면 물건이 반응해야 한다.
+                    // 편집 모드가 아니면 강아지만 만진다.
+                    // **그리는 순서와 무관하게 강아지를 먼저 검사**하므로,
+                    // 가구 뒤에 반쯤 가려진 강아지도 그 자리를 누르면 잡힌다.
+                    if (!editing && herd != null) {
+                        val hit = herd.sortedByDepth().asReversed().firstOrNull { d ->
+                            val art = catalog[d.artId] ?: return@firstOrNull false
+                            d.hitTest(down.position, art, g)
+                        }
+                        if (hit != null) {
+                            down.consume()
+                            herd.draggingId = hit.id
+                            val grab = hit.pos - g.toGridF(down.position).let { Offset(it.first, it.second) }
+                            try {
+                                while (true) {
+                                    val e = awaitPointerEvent()
+                                    val ch = e.changes.firstOrNull { it.id == down.id } ?: break
+                                    if (!ch.pressed) break
+                                    val gg = RoomGeometry.of(size.width.toFloat(), size.height.toFloat())
+                                    val (cf, rf) = gg.toGridF(ch.position)
+                                    hit.pos = herd.clampToFloor(Offset(cf, rf) + grab)
+                                    hit.target = hit.pos
+                                    hit.restUntil = clock.value + 600L
+                                    ch.consume()
+                                }
+                            } finally {
+                                herd.draggingId = null
+                            }
+                            return@awaitEachGesture
+                        }
+                        // 강아지가 아니면 문만 본다 (가구는 편집 모드에서만)
+                        if (DoorSpec.contains(g, down.position)) {
+                            var slid = false
+                            while (true) {
+                                val e = awaitPointerEvent()
+                                val ch = e.changes.firstOrNull { it.id == down.id } ?: break
+                                if ((ch.position - down.position).getDistance() > viewConfiguration.touchSlop) slid = true
+                                if (!ch.pressed) break
+                            }
+                            if (!slid) openDoor()
+                        }
+                        return@awaitEachGesture
+                    }
+
+                    // --- 여기부터는 편집 모드 ---
                     if (!state.beginDrag(down.position, g, catalog)) {
+                        // 가구도 문도 아니면 선택 해제
+                        if (!DoorSpec.contains(g, down.position)) emptyTapHandler?.invoke()
                         // 아이템이 아니면 문인지 본다.
                         if (DoorSpec.contains(g, down.position)) {
                             // down 을 소비하지 않는다 — 문 위에서 쓸어내리면
@@ -157,7 +214,7 @@ fun MiniRoomCanvas(
                 if (d != null) {
                     val dragged = state.items.firstOrNull { it.instanceId == d.instanceId }
                     val box = dragged?.let { catalog[it.itemId]?.box }
-                    if (box != null && !d.willRemove) {
+                    if (box != null) {
                         drawCellGhost(g, d.targetCol, d.targetRow, box.footprint, d.valid)
                         drawLiftShadow(g, d.targetCol, d.targetRow, box.footprint)
                     }
@@ -175,22 +232,29 @@ fun MiniRoomCanvas(
                 }
 
                 // 1) 보통 아이템 — col+row 순서대로
+                // 가구와 강아지를 **깊이로 섞어서** 그린다. 둘 다 col+row 기준이라
+                // 강아지가 화분 뒤로 가면 실제로 가려진다.
+                val dogsSorted = if (herd != null && !editing) herd.sortedByDepth() else emptyList()
+                var di = 0
                 for (item in order) {
-                    if (catalog[item.itemId]?.box?.alwaysOnTop == true) continue
+                    val itemDepth = (item.col + item.row).toFloat()
+                    while (di < dogsSorted.size &&
+                        (dogsSorted[di].pos.x + dogsSorted[di].pos.y) <= itemDepth
+                    ) {
+                        val dog = dogsSorted[di]
+                        catalog[dog.artId]?.let { drawDog(it, dog, g, t) }
+                        di++
+                    }
                     paint(item)
                 }
+                while (di < dogsSorted.size) {
+                    val dog = dogsSorted[di]
+                    catalog[dog.artId]?.let { drawDog(it, dog, g, t) }
+                    di++
+                }
 
-                // 2) 울타리는 바닥 앞쪽 모서리에 서므로 아이템보다 뒤에 그리면 안 된다.
+                // 울타리는 바닥 앞쪽 모서리에 서므로 아이템보다 뒤에 그리면 안 된다.
                 drawFence(g, theme)
-
-                // 3) 강아지 — 울타리보다도 앞. 주인공이라 무엇에도 가리지 않는다.
-                for (item in order) {
-                    if (catalog[item.itemId]?.box?.alwaysOnTop != true) continue
-                    paint(item)
-                }
-
-                // 4) 방 밖으로 끌어낸 상태면 손끝에 치우기 표시
-                if (d != null && d.willRemove) drawRemoveHint(d.pointer, g)
             }
     )
 }

@@ -55,6 +55,14 @@ class MiniRoomState internal constructor(initial: List<PlacedItem>) {
     var drag: DragState? by mutableStateOf(null)
         private set
 
+    /** 편집 모드에서 선택된 가구. 이 아이템 옆에 돌리기/치우기 버튼이 뜬다. */
+    var selectedId: Long? by mutableStateOf(null)
+        private set
+
+    fun select(id: Long?) {
+        selectedId = id
+    }
+
     private var nextId: Long = (initial.maxOfOrNull { it.instanceId } ?: 0L) + 1L
 
     // -- 조회 -----------------------------------------------------------------
@@ -167,28 +175,19 @@ class MiniRoomState internal constructor(initial: List<PlacedItem>) {
         val targetCol = (d.startCol + dCol).coerceIn(0, maxCol)
         val targetRow = (d.startRow + dRow).coerceIn(0, maxRow)
 
-        // 방에서 한 칸 이상 완전히 벗어나면 "치우기". 살짝 넘긴 건 위처럼 가장자리에 붙는다.
-        val out = RoomSpec.GRID + 1f
-        val willRemove = c1 < -1f || r1 < -1f || c1 > out || r1 > out
-
         drag = d.copy(
             pointer = pointer,
             targetCol = targetCol,
             targetRow = targetRow,
             valid = canPlace(item.itemId, targetCol, targetRow, item.instanceId, catalog),
-            willRemove = willRemove,
         )
     }
 
-    /** 놓기. 방 밖이면 치우고, 유효하면 스냅, 이미 찬 칸이면 원래 자리로 되돌린다. */
+    /** 놓기. 유효하면 스냅, 이미 찬 칸이면 원래 자리로 되돌린다. */
     fun endDrag(catalog: ItemCatalog) {
         val d = drag
         drag = null
         if (d == null) return
-        if (d.willRemove) {
-            items.removeAll { it.instanceId == d.instanceId }
-            return
-        }
         if (!d.valid) return
         val i = items.indexOfFirst { it.instanceId == d.instanceId }
         if (i < 0) return
@@ -250,6 +249,7 @@ class MiniRoomState internal constructor(initial: List<PlacedItem>) {
     /** 방 → 인벤토리. */
     fun returnToInventory(instanceId: Long) {
         items.removeAll { it.instanceId == instanceId }
+        if (selectedId == instanceId) selectedId = null
     }
 
     // -- 편집 -----------------------------------------------------------------

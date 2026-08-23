@@ -6,6 +6,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.unit.IntSize
@@ -13,6 +14,8 @@ import com.daengs.app.miniroom.art.ItemArt
 import com.daengs.app.miniroom.sprite.drawSpriteFrame
 import com.daengs.app.miniroom.sprite.frameIndexAt
 import com.daengs.app.ui.theme.RoomPalette
+import kotlin.math.abs
+import kotlin.math.sin
 
 /** 기본 단위 아트를 화면에 올리는 **유일한** 변환 지점. */
 private inline fun DrawScope.inArtSpace(
@@ -73,15 +76,6 @@ fun DrawScope.drawItem(
     }
 }
 
-/** 방 밖으로 끌어냈을 때 뜨는 "치우기" 표시. */
-fun DrawScope.drawRemoveHint(center: Offset, g: RoomGeometry) {
-    val r = 17f * g.scale
-    drawCircle(RoomPalette.GhostInvalid.copy(alpha = 0.9f), r, center)
-    val a = r * 0.42f
-    drawLine(Color.White, center + Offset(-a, -a), center + Offset(a, a), strokeWidth = 3f * g.scale)
-    drawLine(Color.White, center + Offset(a, -a), center + Offset(-a, a), strokeWidth = 3f * g.scale)
-}
-
 /** 들어올린 아이템 아래 바닥에 지는 그림자. */
 fun DrawScope.drawLiftShadow(g: RoomGeometry, col: Int, row: Int, footprint: IntSize) {
     val c = g.footprintCenter(col, row, footprint)
@@ -124,4 +118,93 @@ fun DrawScope.drawCellGhost(
     val color = if (valid) RoomPalette.GhostValid else RoomPalette.GhostInvalid
     drawPath(p, color.copy(alpha = 0.32f))
     drawPath(p, color.copy(alpha = 0.85f), style = Stroke(width = 2f * g.scale))
+}
+
+/**
+ * 돌아다니는 강아지 한 마리.
+ *
+ * **걷는 그림이 따로 없어도 걷는 것처럼 보이게 하는 부분이다.**
+ * 정지 그림 한 장에 코드로 움직임을 입힌다:
+ *  - 통통 튀기(bob) : 걸음마다 위아래로. 제일 크게 먹힌다
+ *  - 착지 눌림(squash) : 바닥에 닿는 순간 납작해지고 옆으로 퍼진다
+ *  - 좌우 기울임(lean) : 발밑을 축으로 살짝. 무게 이동처럼 보인다
+ * 멈춰 있을 땐 느린 숨쉬기만 남는다.
+ *
+ * 이게 충분히 그럴듯하면 힉스필드 호출이 견종당 1회로 끝난다.
+ */
+fun DrawScope.drawDog(
+    art: ItemArt,
+    dog: DogActor,
+    g: RoomGeometry,
+    timeMs: Long,
+    alpha: Float = 1f,
+) {
+    val s = g.scale * dog.sizeScale
+    val foot = g.toScreenF(dog.pos.x, dog.pos.y)
+
+    val bob: Float
+    val lean: Float
+    val squash: Float
+    if (dog.moving) {
+        // abs(sin) 이라 한 걸음에 한 번씩 튄다. 위로만 뜨고 아래로는 안 꺼진다.
+        val step = abs(sin(dog.phase))
+        bob = -step * 3.4f
+        lean = sin(dog.phase * 0.5f) * 4f
+        squash = 1f - step * 0.06f
+    } else {
+        bob = sin(timeMs / 700f) * 0.7f
+        lean = 0f
+        squash = 1f + sin(timeMs / 700f) * 0.02f
+    }
+
+    // 그림자는 몸이 튀어도 바닥에 붙어 있어야 한다. 뜬 만큼 작고 옅어진다.
+    val shW = art.box.size.width * 0.62f * s
+    val lift = (-bob / 3.4f).coerceIn(0f, 1f)
+    drawOval(
+        RoomPalette.Shadow.copy(alpha = (0.30f - 0.10f * lift) * alpha),
+        Offset(foot.x - shW / 2f, foot.y - shW / (2f * RoomSpec.TILE_RATIO)),
+        Size(shW * (1f - 0.12f * lift), shW / RoomSpec.TILE_RATIO * (1f - 0.12f * lift)),
+    )
+
+    withTransform({
+        translate(
+            foot.x - art.box.anchor.x * s,
+            foot.y - art.box.anchor.y * s * squash + bob * s,
+        )
+        scale(s, s * squash, pivot = Offset.Zero)
+        // 발밑을 축으로 기울여야 발이 안 미끄러진다
+        rotate(lean, pivot = art.box.anchor)
+        if (dog.mirrored) scale(-1f, 1f, pivot = Offset(art.box.anchor.x, 0f))
+    }) {
+        when (art) {
+            is ItemArt.Shapes -> art.draw(this, frameIndexAt(timeMs, 8, 6))
+            is ItemArt.Bitmap -> drawImage(
+                image = art.image,
+                dstOffset = androidx.compose.ui.unit.IntOffset.Zero,
+                dstSize = IntSize(art.box.size.width.toInt(), art.box.size.height.toInt()),
+                alpha = alpha,
+                filterQuality = art.filterQuality,
+            )
+
+            is ItemArt.Sheet -> {
+                val frame = frameIndexAt(timeMs, art.frameCount, art.fps)
+                if (art.sheet != null) {
+                    drawSpriteFrame(art.sheet, frame, art.box.size, alpha = alpha)
+                } else {
+                    art.fallback(this, frame)
+                }
+            }
+        }
+    }
+}
+
+/** 화면 좌표가 이 강아지 위인가. 그리는 순서와 무관하게 판정한다. */
+fun DogActor.hitTest(pos: Offset, art: ItemArt, g: RoomGeometry): Boolean {
+    val s = g.scale * sizeScale
+    val foot = g.toScreenF(this.pos.x, this.pos.y)
+    val left = foot.x - art.box.anchor.x * s
+    val top = foot.y - art.box.anchor.y * s
+    val local = Offset((pos.x - left) / s, (pos.y - top) / s)
+    val l = if (mirrored) Offset(2f * art.box.anchor.x - local.x, local.y) else local
+    return art.box.touchArea.contains(l)
 }

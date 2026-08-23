@@ -24,10 +24,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import com.daengs.app.miniroom.MiniRoomCanvas
 import com.daengs.app.miniroom.MiniRoomState
 import com.daengs.app.miniroom.RoomDefaults
+import com.daengs.app.miniroom.rememberDogHerd
+import com.daengs.app.miniroom.RoomGeometry
 import com.daengs.app.miniroom.RoomTheme
 import com.daengs.app.miniroom.rememberRoomStore
 import com.daengs.app.miniroom.art.ItemCatalog
@@ -62,6 +67,7 @@ fun HomeScreen(
     var bottomTab by rememberSaveable { mutableStateOf(BottomTab.Home) }
     var inventoryOpen by rememberSaveable { mutableStateOf(false) }
 
+    val herd = rememberDogHerd(RoomDefaults.DOG_COUNT)
     val store = rememberRoomStore()
     // 테마는 id 만 저장한다 — 원시값이라 화면 회전에도 그대로 남는다
     var themeId by rememberSaveable { mutableStateOf(store.loadThemeId() ?: RoomTheme.DEFAULT.id) }
@@ -121,6 +127,7 @@ fun HomeScreen(
                 inventoryOpen = inventoryOpen,
                 onToggleInventory = { inventoryOpen = !inventoryOpen },
                 theme = roomTheme,
+                herd = herd,
                 modifier = Modifier.fillMaxWidth().weight(1f),
             )
             // 인벤토리를 방 위에 겹치면 바닥을 가려서 방금 놓은 물건이 안 보인다.
@@ -157,22 +164,30 @@ private fun RoomSection(
     inventoryOpen: Boolean,
     onToggleInventory: () -> Unit,
     theme: RoomTheme,
+    herd: com.daengs.app.miniroom.DogHerd,
     modifier: Modifier = Modifier,
 ) {
     // @Preview 안에서는 무한 애니메이션이 돌지 않아 프레임 0 에 얼어붙는다.
     // 미리보기에서는 중간 프레임을 찍어 강아지 자세가 보이게 한다.
     val previewFrame = if (LocalInspectionMode.current) 400L else null
 
-    Box(modifier) {
+    var boxSize by remember { mutableStateOf(IntSize.Zero) }
+
+    Box(modifier.onSizeChanged { boxSize = it }) {
         MiniRoomCanvas(
             state = state,
             catalog = catalog,
             theme = theme,
+            herd = herd,
+            // 인벤토리가 열려 있는 동안이 편집 모드. 강아지는 확 숨는다.
+            editing = inventoryOpen,
             modifier = Modifier.fillMaxSize(),
             frameTimeMs = frameTimeMs ?: previewFrame,
             // 톡 누르면 방향 돌리기. 치우기는 "방 밖으로 끌어내기"로 분리했다 —
             // 탭 하나에 두 가지 뜻을 담으면 헷갈리고, 실수로 사라지면 곤란하다.
-            onItemTap = { item -> state.rotate(item.instanceId) },
+            // 편집 모드에서 탭 = 선택. 돌리기/치우기는 버튼으로 뺐다.
+            onItemTap = { item -> state.select(item.instanceId) },
+            onEmptyTap = { state.select(null) },
             // 문이 활짝 열린 순간. 산책 게임 화면이 생기면 여기서 넘기면 된다.
             // (CONTEXT.md 4번: 미니룸(홈) -> [방문 클릭] -> 산책 게임)
             onDoorOpened = {},
@@ -195,6 +210,27 @@ private fun RoomSection(
             label = HomeDemoData.ROOM_LABEL,
             modifier = Modifier.align(Alignment.BottomCenter).offset(y = (-2).dp),
         )
+
+        // 선택된 가구 위에 뜨는 버튼. 캔버스가 아니라 오버레이라 터치·그림자가 공짜다.
+        val selected = state.items.firstOrNull { it.instanceId == state.selectedId }
+        val selectedArt = selected?.let { catalog[it.itemId] }
+        if (inventoryOpen && selected != null && selectedArt != null && boxSize.width > 0) {
+            val g = RoomGeometry.of(boxSize.width.toFloat(), boxSize.height.toFloat())
+            val c = g.footprintCenter(selected.col, selected.row, selectedArt.box.footprint)
+            val artTop = c.y - selectedArt.box.anchor.y * g.scale
+            val artRight = c.x + selectedArt.box.size.width / 2f * g.scale
+            ItemActions(
+                onRotate = { state.rotate(selected.instanceId) },
+                onStore = { state.returnToInventory(selected.instanceId) },
+                modifier = Modifier.offset {
+                    IntOffset(
+                        // 화면 밖으로 안 나가게 살짝 물린다
+                        (artRight - 24f).toInt().coerceIn(0, boxSize.width - 200),
+                        (artTop - 44f).toInt().coerceAtLeast(0),
+                    )
+                },
+            )
+        }
     }
 }
 

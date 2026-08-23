@@ -100,7 +100,8 @@ val ItemSpecs: Map<String, ItemArtSpec> = mapOf(
     },
 
     RoomDefaults.DOG_ID to ItemArtSpec.Sheet(
-        box = ArtBox(size = Size(56f, 78f), anchor = Offset(28f, 74f), alwaysOnTop = true),
+        // 돌아다니게 되면서 alwaysOnTop 을 뗐다. 화분 뒤로 가면 실제로 가려진다.
+        box = ArtBox(size = Size(56f, 78f), anchor = Offset(28f, 74f)),
         movable = false,
         resId = 0, // 아직 에셋 없음 → fallback 사용
         frameWidth = 56,

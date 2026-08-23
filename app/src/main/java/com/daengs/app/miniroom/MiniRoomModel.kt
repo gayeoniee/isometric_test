@@ -46,8 +46,6 @@ data class DragState(
     val targetCol: Int,
     val targetRow: Int,
     val valid: Boolean,
-    /** 방 밖으로 끌어냈는가 — 손을 떼면 인벤토리로 돌아간다. */
-    val willRemove: Boolean = false,
 ) {
     /** 손가락이 움직인 만큼. 스냅 전 자유 좌표를 그릴 때 쓴다. */
     val visualDelta: Offset get() = pointer - startPointer
@@ -88,17 +86,18 @@ object RoomDefaults {
     val INVENTORY_ORDER: List<String> = OWNED.keys.toList()
 
     /** 시안 배치를 대충 흉내 낸 초기 상태. 전부 하드코딩 — 백엔드 없음. */
+    /** 가구만. 강아지는 격자를 안 쓰므로 [DogHerd] 가 따로 관리한다. */
     val STARTER_ROOM: List<PlacedItem> = listOf(
         PlacedItem(1L, "plant", 5, 0),
         PlacedItem(2L, "desk", 4, 1),
-        // 러그 -> 침대 -> 강아지 순서로 같은 칸에 겹친다.
-        // 셋 다 (2,2) 이고 레이어가 달라서 강아지가 침대 위에 앉은 것처럼 보인다.
         PlacedItem(3L, "rug", 2, 2),
         PlacedItem(4L, "bed", 2, 2),
-        PlacedItem(5L, DOG_ID, 2, 2),
-        PlacedItem(6L, "bowl", 4, 3),
-        PlacedItem(7L, "waterbowl", 5, 3),
-        PlacedItem(8L, "lantern", 0, 4),
-        PlacedItem(9L, "humanbed", 0, 1),
+        PlacedItem(5L, "bowl", 4, 3),
+        PlacedItem(6L, "waterbowl", 5, 3),
+        PlacedItem(7L, "lantern", 0, 4),
+        PlacedItem(8L, "humanbed", 0, 1),
     )
+
+    /** 방에 돌아다니는 강아지 수. 3마리 / 10마리 비교용으로 여기만 바꾸면 된다. */
+    const val DOG_COUNT = 3
 }
