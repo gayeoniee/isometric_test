@@ -11,6 +11,7 @@ import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.unit.IntSize
 import com.daengs.app.miniroom.art.ItemArt
+import com.daengs.app.miniroom.art.footprintFacing
 import com.daengs.app.miniroom.sprite.drawSpriteFrame
 import com.daengs.app.miniroom.sprite.frameIndexAt
 import com.daengs.app.ui.theme.RoomPalette
@@ -26,7 +27,7 @@ private inline fun DrawScope.inArtSpace(
     lift: Float,
     block: DrawScope.() -> Unit,
 ) {
-    val c = g.footprintCenter(item.col, item.row, art.box.footprint)
+    val c = g.footprintCenter(item.col, item.row, art.box.footprintFacing(item.facing))
     withTransform({
         translate(
             c.x - art.box.anchor.x * g.scale + dragOffset.x,

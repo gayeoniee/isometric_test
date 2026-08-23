@@ -64,7 +64,8 @@ data class DragState(
 fun depthKey(col: Int, row: Int, fw: Int, fh: Int): Int = (col + fw - 1) + (row + fh - 1)
 
 object RoomDefaults {
-    const val DOG_ID = "dog"
+    // 강아지 아트 키는 여기 없다 — 털색마다 하나씩이라
+    // [com.daengs.app.miniroom.art.DogCoat.ALL] 이 유일한 출처다.
 
     /**
      * 보유 개수. 인벤토리에 남은 수 = 여기 수 - 방에 놓인 수 로 **계산**한다.

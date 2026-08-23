@@ -36,6 +36,7 @@ import com.daengs.app.miniroom.RoomGeometry
 import com.daengs.app.miniroom.RoomTheme
 import com.daengs.app.miniroom.rememberRoomStore
 import com.daengs.app.miniroom.art.ItemCatalog
+import com.daengs.app.miniroom.art.footprintFacing
 import com.daengs.app.miniroom.art.rememberItemCatalog
 import com.daengs.app.miniroom.rememberMiniRoomState
 import com.daengs.app.ui.theme.CreamBg
@@ -216,11 +217,13 @@ private fun RoomSection(
         val selectedArt = selected?.let { catalog[it.itemId] }
         if (inventoryOpen && selected != null && selectedArt != null && boxSize.width > 0) {
             val g = RoomGeometry.of(boxSize.width.toFloat(), boxSize.height.toFloat())
-            val c = g.footprintCenter(selected.col, selected.row, selectedArt.box.footprint)
+            val c = g.footprintCenter(
+                selected.col, selected.row, selectedArt.box.footprintFacing(selected.facing),
+            )
             val artTop = c.y - selectedArt.box.anchor.y * g.scale
             val artRight = c.x + selectedArt.box.size.width / 2f * g.scale
             ItemActions(
-                onRotate = { state.rotate(selected.instanceId) },
+                onRotate = { state.rotate(selected.instanceId, catalog) },
                 onStore = { state.returnToInventory(selected.instanceId) },
                 modifier = Modifier.offset {
                     IntOffset(

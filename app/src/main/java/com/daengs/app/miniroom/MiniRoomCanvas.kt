@@ -18,6 +18,7 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.input.pointer.pointerInput
 import com.daengs.app.miniroom.art.DoorSpec
 import com.daengs.app.miniroom.art.ItemCatalog
+import com.daengs.app.miniroom.art.footprintFacing
 import com.daengs.app.miniroom.art.drawFence
 import com.daengs.app.miniroom.art.drawRoomShell
 import com.daengs.app.miniroom.sprite.rememberFrameClock
@@ -67,9 +68,13 @@ fun MiniRoomCanvas(
     // 여는 중에 또 눌러도 애니메이션이 겹치지 않게 Job 하나로 관리한다
     val doorJob = remember { arrayOfNulls<Job>(1) }
 
+    // 서 있는 가구가 막은 칸. 강아지가 통과하지 못하는 곳이다.
+    // `flat` 아트(러그·강아지침대)는 여기 안 들어오므로 그 위로는 지나다닌다.
+    val blocked = state.occupiedCells(exclude = null, catalog = catalog)
+
     // 배회는 프레임 시계에 맞춰 갱신한다. 그리기와 같은 시각을 쓰므로 어긋나지 않는다.
     if (herd != null && !editing && frameTimeMs == null) {
-        herd.update(clock.value)
+        herd.update(clock.value, blocked)
     }
 
     fun openDoor() {
@@ -90,6 +95,13 @@ fun MiniRoomCanvas(
     val emptyTapHandler by rememberUpdatedState(onEmptyTap)
     val tapEnabled = onItemTap != null
 
+    // editing 도 **반드시** 여기를 거쳐야 한다. 아래 pointerInput 의 키가 안 바뀌면
+    // 제스처 코루틴은 재시작되지 않고, 람다가 캡처한 editing 은 첫 합성 시점 값
+    // (= false) 에 얼어붙는다. 그러면 인벤토리를 열어도 터치가 강아지 분기로만 흘러서
+    // 가구를 영영 못 잡는다 — 그림은 editing 을 제대로 반영하므로(drawBehind 는 매번
+    // 새 람다) 강아지는 사라지는데 가구는 안 잡히는, 원인이 안 보이는 증상이 된다.
+    val editingNow by rememberUpdatedState(editing)
+
     Spacer(
         modifier
             // 키는 반드시 Unit. state.items 같은 걸 키로 주면 아이템을 놓는 순간
@@ -102,7 +114,7 @@ fun MiniRoomCanvas(
                     // 편집 모드가 아니면 강아지만 만진다.
                     // **그리는 순서와 무관하게 강아지를 먼저 검사**하므로,
                     // 가구 뒤에 반쯤 가려진 강아지도 그 자리를 누르면 잡힌다.
-                    if (!editing && herd != null) {
+                    if (!editingNow && herd != null) {
                         val hit = herd.sortedByDepth().asReversed().firstOrNull { d ->
                             val art = catalog[d.artId] ?: return@firstOrNull false
                             d.hitTest(down.position, art, g)
@@ -111,6 +123,8 @@ fun MiniRoomCanvas(
                             down.consume()
                             herd.draggingId = hit.id
                             val grab = hit.pos - g.toGridF(down.position).let { Offset(it.first, it.second) }
+                            // 끄는 동안엔 편집 모드가 아니라 가구가 안 움직인다 → 한 번만 읽는다
+                            val walls = state.occupiedCells(null, catalog)
                             try {
                                 while (true) {
                                     val e = awaitPointerEvent()
@@ -118,7 +132,8 @@ fun MiniRoomCanvas(
                                     if (!ch.pressed) break
                                     val gg = RoomGeometry.of(size.width.toFloat(), size.height.toFloat())
                                     val (cf, rf) = gg.toGridF(ch.position)
-                                    hit.pos = herd.clampToFloor(Offset(cf, rf) + grab)
+                                    // 손가락으로도 책상을 뚫지 못한다 — 자율 이동과 같은 규칙
+                                    herd.dragTo(hit, Offset(cf, rf) + grab, walls)
                                     hit.target = hit.pos
                                     hit.restUntil = clock.value + 600L
                                     ch.consume()
@@ -215,8 +230,9 @@ fun MiniRoomCanvas(
                     val dragged = state.items.firstOrNull { it.instanceId == d.instanceId }
                     val box = dragged?.let { catalog[it.itemId]?.box }
                     if (box != null) {
-                        drawCellGhost(g, d.targetCol, d.targetRow, box.footprint, d.valid)
-                        drawLiftShadow(g, d.targetCol, d.targetRow, box.footprint)
+                        val fp = box.footprintFacing(dragged.facing)
+                        drawCellGhost(g, d.targetCol, d.targetRow, fp, d.valid)
+                        drawLiftShadow(g, d.targetCol, d.targetRow, fp)
                     }
                 }
 
@@ -231,27 +247,32 @@ fun MiniRoomCanvas(
                     }
                 }
 
-                // 1) 보통 아이템 — col+row 순서대로
-                // 가구와 강아지를 **깊이로 섞어서** 그린다. 둘 다 col+row 기준이라
-                // 강아지가 화분 뒤로 가면 실제로 가려진다.
-                val dogsSorted = if (herd != null && !editing) herd.sortedByDepth() else emptyList()
-                var di = 0
+                // 1) 바닥 장식(러그·강아지침대) — 두께가 0 이라 아무것도 가리지 못한다.
+                //    깊이와 무관하게 통째로 맨 뒤. 앞칸 러그가 뒤칸 강아지를 덮으면 안 된다.
                 for (item in order) {
-                    val itemDepth = (item.col + item.row).toFloat()
-                    while (di < dogsSorted.size &&
-                        (dogsSorted[di].pos.x + dogsSorted[di].pos.y) <= itemDepth
-                    ) {
-                        val dog = dogsSorted[di]
+                    if (state.layerOf(item, catalog) == MiniRoomState.LAYER_FLOOR) paint(item)
+                }
+
+                // 2) 서 있는 가구와 강아지를 **같은 자로** 깊이 정렬해 섞는다.
+                //    강아지는 발끝이 딛은 칸으로 잰다 — 자세한 건 DogActor.depthCell.
+                //    같은 깊이면 강아지가 앞 (`<` 이므로 동률에서 아이템이 먼저 나간다).
+                val dogs = if (herd != null && !editing) herd.sortedByDepth() else emptyList()
+                var di = 0
+
+                fun DrawScope.flushDogsUpTo(depth: Int) {
+                    while (di < dogs.size && dogs[di].depthCell < depth) {
+                        val dog = dogs[di]
                         catalog[dog.artId]?.let { drawDog(it, dog, g, t) }
                         di++
                     }
+                }
+
+                for (item in order) {
+                    if (state.layerOf(item, catalog) == MiniRoomState.LAYER_FLOOR) continue
+                    flushDogsUpTo(state.depthOf(item, catalog))
                     paint(item)
                 }
-                while (di < dogsSorted.size) {
-                    val dog = dogsSorted[di]
-                    catalog[dog.artId]?.let { drawDog(it, dog, g, t) }
-                    di++
-                }
+                flushDogsUpTo(Int.MAX_VALUE)
 
                 // 울타리는 바닥 앞쪽 모서리에 서므로 아이템보다 뒤에 그리면 안 된다.
                 drawFence(g, theme)

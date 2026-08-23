@@ -12,12 +12,13 @@ import androidx.compose.runtime.toMutableStateList
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.unit.IntOffset
 import com.daengs.app.miniroom.art.ItemCatalog
+import com.daengs.app.miniroom.art.footprintFacing
 import kotlin.math.floor
 
 /** 화면 좌표를 아이템 아트 상자 안의 로컬 좌표(기본 단위)로 되돌린다. */
 fun RoomGeometry.toArtLocal(p: Offset, item: PlacedItem, catalog: ItemCatalog): Offset? {
     val box = catalog[item.itemId]?.box ?: return null
-    val c = footprintCenter(item.col, item.row, box.footprint)
+    val c = footprintCenter(item.col, item.row, box.footprintFacing(item.facing))
     val left = c.x - box.anchor.x * scale
     val top = c.y - box.anchor.y * scale
     val local = Offset((p.x - left) / scale, (p.y - top) / scale)
@@ -82,24 +83,29 @@ class MiniRoomState internal constructor(initial: List<PlacedItem>) {
      * 레이어 0 을 따로 두지 않으면, 앞칸으로 옮긴 러그가 뒤칸의 공이나 강아지를
      * 덮어버린다 — 깊이 계산은 맞지만 눈에는 명백히 틀려 보인다.
      */
-    fun drawOrder(catalog: ItemCatalog): List<PlacedItem> {
-        val d = drag
-        return items.sortedWith(
+    fun drawOrder(catalog: ItemCatalog): List<PlacedItem> =
+        items.sortedWith(
             compareBy(
                 { layerOf(it, catalog) },
-                { depthOf(it, catalog, d) },
+                { depthOf(it, catalog) },
             )
         )
-    }
 
-    private fun depthOf(item: PlacedItem, catalog: ItemCatalog, d: DragState?): Int {
-        val fp = catalog[item.itemId]?.box?.footprint
+    /**
+     * 앞뒤 정렬 키. 드래그 중에는 **놓일 자리** 기준이라 손을 떼기 전에 앞뒤가 바뀐다.
+     *
+     * 강아지도 같은 자로 재야 해서 public 이다 ([DogActor.depthCell]).
+     * 둘이 다른 자를 쓰면 뒤에 있는 강아지가 가구 위에 그려진다.
+     */
+    fun depthOf(item: PlacedItem, catalog: ItemCatalog): Int {
+        val d = drag
+        val fp = catalog[item.itemId]?.box?.footprintFacing(item.facing)
         val col = if (d != null && item.instanceId == d.instanceId) d.targetCol else item.col
         val row = if (d != null && item.instanceId == d.instanceId) d.targetRow else item.row
         return depthKey(col, row, fp?.width ?: 1, fp?.height ?: 1)
     }
 
-    private fun layerOf(item: PlacedItem, catalog: ItemCatalog): Int {
+    fun layerOf(item: PlacedItem, catalog: ItemCatalog): Int {
         val box = catalog[item.itemId]?.box ?: return LAYER_ITEM
         return when {
             box.alwaysOnTop -> LAYER_TOP
@@ -108,15 +114,22 @@ class MiniRoomState internal constructor(initial: List<PlacedItem>) {
         }
     }
 
-    /** 점유된 칸. 바닥에 깔린 아트(러그)는 칸을 막지 않는다. */
+    /**
+     * 점유된 칸. 바닥에 깔린 아트(러그·강아지침대)는 칸을 막지 않는다.
+     *
+     * 배치 충돌뿐 아니라 **강아지 통행 판정**도 이 집합을 쓴다 ([DogHerd.update]).
+     * 그래서 아이템 하나를 `flat` 으로 바꾸면 "그 위에 물건을 놓을 수 있다"와
+     * "강아지가 그 위를 지나갈 수 있다"가 한꺼번에 따라온다.
+     */
     fun occupiedCells(exclude: Long?, catalog: ItemCatalog): Set<IntOffset> {
         val out = HashSet<IntOffset>()
         for (item in items) {
             if (item.instanceId == exclude) continue
             val box = catalog[item.itemId]?.box ?: continue
             if (box.flat) continue
-            for (dc in 0 until box.footprint.width) {
-                for (dr in 0 until box.footprint.height) {
+            val fp = box.footprintFacing(item.facing)
+            for (dc in 0 until fp.width) {
+                for (dr in 0 until fp.height) {
                     out += IntOffset(item.col + dc, item.row + dr)
                 }
             }
@@ -124,15 +137,23 @@ class MiniRoomState internal constructor(initial: List<PlacedItem>) {
         return out
     }
 
-    fun canPlace(itemId: String, col: Int, row: Int, ignore: Long?, catalog: ItemCatalog): Boolean {
+    fun canPlace(
+        itemId: String,
+        col: Int,
+        row: Int,
+        ignore: Long?,
+        catalog: ItemCatalog,
+        facing: Int = 0,
+    ): Boolean {
         val box = catalog[itemId]?.box ?: return false
+        val fp = box.footprintFacing(facing)
         if (col < 0 || row < 0) return false
-        if (col + box.footprint.width > RoomSpec.GRID) return false
-        if (row + box.footprint.height > RoomSpec.GRID) return false
+        if (col + fp.width > RoomSpec.GRID) return false
+        if (row + fp.height > RoomSpec.GRID) return false
         if (box.flat) return true
         val taken = occupiedCells(ignore, catalog)
-        for (dc in 0 until box.footprint.width) {
-            for (dr in 0 until box.footprint.height) {
+        for (dc in 0 until fp.width) {
+            for (dr in 0 until fp.height) {
                 if (IntOffset(col + dc, row + dr) in taken) return false
             }
         }
@@ -170,8 +191,9 @@ class MiniRoomState internal constructor(initial: List<PlacedItem>) {
 
         // 격자 밖으로 나가면 가장자리에 붙인다 — 유령 표시가 항상 "실제로 놓일 칸"이
         // 되므로, 손을 떼기 전에 결과가 눈에 보인다.
-        val maxCol = RoomSpec.GRID - box.footprint.width
-        val maxRow = RoomSpec.GRID - box.footprint.height
+        val fp = box.footprintFacing(item.facing)
+        val maxCol = RoomSpec.GRID - fp.width
+        val maxRow = RoomSpec.GRID - fp.height
         val targetCol = (d.startCol + dCol).coerceIn(0, maxCol)
         val targetRow = (d.startRow + dRow).coerceIn(0, maxRow)
 
@@ -179,7 +201,9 @@ class MiniRoomState internal constructor(initial: List<PlacedItem>) {
             pointer = pointer,
             targetCol = targetCol,
             targetRow = targetRow,
-            valid = canPlace(item.itemId, targetCol, targetRow, item.instanceId, catalog),
+            valid = canPlace(
+                item.itemId, targetCol, targetRow, item.instanceId, catalog, item.facing,
+            ),
         )
     }
 
@@ -198,11 +222,29 @@ class MiniRoomState internal constructor(initial: List<PlacedItem>) {
     /**
      * 방향 돌리기. 지금은 좌우 반전 2방향뿐이라 누를 때마다 토글된다.
      * 방향별 그림이 늘어나면 여기 나머지 연산만 바꾸면 된다.
+     *
+     * **다칸 아이템은 발자국까지 같이 돈다** ([footprintFacing]). 그래서 돌린 결과가
+     * 격자를 넘거나 옆 물건과 겹칠 수 있다:
+     *  - 격자를 넘으면 안쪽으로 밀어 넣는다 (구석의 침대를 못 돌리면 답답하다)
+     *  - 그래도 다른 물건과 겹치면 **아무 일도 하지 않는다.** 반쯤 겹친 채로
+     *    두는 것보다 안 도는 게 낫다
+     *
+     * @return 실제로 돌았으면 true
      */
-    fun rotate(instanceId: Long) {
+    fun rotate(instanceId: Long, catalog: ItemCatalog): Boolean {
         val i = items.indexOfFirst { it.instanceId == instanceId }
-        if (i < 0) return
-        items[i] = items[i].copy(facing = (items[i].facing + 1) % PlacedItem.FACINGS)
+        if (i < 0) return false
+        val item = items[i]
+        val box = catalog[item.itemId]?.box ?: return false
+        val next = (item.facing + 1) % PlacedItem.FACINGS
+
+        val fp = box.footprintFacing(next)
+        val col = item.col.coerceIn(0, (RoomSpec.GRID - fp.width).coerceAtLeast(0))
+        val row = item.row.coerceIn(0, (RoomSpec.GRID - fp.height).coerceAtLeast(0))
+        if (!canPlace(item.itemId, col, row, item.instanceId, catalog, next)) return false
+
+        items[i] = item.copy(col = col, row = row, facing = next)
+        return true
     }
 
     fun cancelDrag() {

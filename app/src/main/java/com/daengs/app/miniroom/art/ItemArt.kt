@@ -44,6 +44,19 @@ data class ArtBox(
 }
 
 /**
+ * [facing] 을 반영한 발자국.
+ *
+ * 아이소메트릭에서 **좌우 반전은 두 격자 축을 맞바꾸는 것과 같다.** col 축은 화면
+ * 오른쪽 아래로, row 축은 왼쪽 아래로 가므로, 거울에 비추면 둘이 서로 자리를 바꾼다.
+ * 그래서 2x1 침대를 돌리면 그림은 세로로 눕는데, 발자국을 같이 안 돌리면 격자는
+ * 여전히 가로 2칸을 먹는다 — 보이는 것과 점유가 어긋나고, 옆칸에 뭘 못 놓는다.
+ *
+ * 정사각(1x1, 2x2)이면 맞바꿔도 같은 값이라 아무 일도 일어나지 않는다.
+ */
+fun ArtBox.footprintFacing(facing: Int): IntSize =
+    if (facing == 1) IntSize(footprint.height, footprint.width) else footprint
+
+/**
  * 아이템의 시각 표현 **선언**. 순수 데이터 — Compose 런타임도, 해석된 리소스도 없다.
  *
  * 에셋이 생기면 [Shapes] → [Res] 로 한 줄만 바꾸면 된다. ArtBox 가 같으면

@@ -8,7 +8,6 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.res.imageResource
 import com.daengs.app.R
-import com.daengs.app.miniroom.RoomDefaults
 import com.daengs.app.miniroom.sprite.SpriteSheet
 import com.daengs.app.ui.theme.RoomPalette
 
@@ -99,18 +98,26 @@ val ItemSpecs: Map<String, ItemArtSpec> = mapOf(
         drawRect(RoomPalette.GhostInvalid, size = Size(36f, 48f))
     },
 
-    RoomDefaults.DOG_ID to ItemArtSpec.Sheet(
-        // 돌아다니게 되면서 alwaysOnTop 을 뗐다. 화분 뒤로 가면 실제로 가려진다.
-        box = ArtBox(size = Size(56f, 78f), anchor = Offset(28f, 74f)),
-        movable = false,
-        resId = 0, // 아직 에셋 없음 → fallback 사용
-        frameWidth = 56,
-        frameHeight = 78,
-        columns = 4,
-        frameCount = 8,
-        fps = 6,
-    ) { frame -> drawDog(frame) },
-)
+) + DogCoat.ALL.associate { it.id to dogSpec(it) }
+
+/**
+ * 강아지는 털색마다 **따로 등록된 아트**다. `DogActor.artId` 가 이 키를 가리키므로
+ * 렌더러는 색을 전혀 모른 채 평소처럼 `catalog[dog.artId]` 만 하면 된다.
+ *
+ * 견종별 PNG 시트가 생기면 색마다 `resId` 만 채워 넣으면 되고, 색을 하나 늘리는 것도
+ * [DogCoat.ALL] 에 한 줄이다.
+ */
+private fun dogSpec(coat: DogCoat) = ItemArtSpec.Sheet(
+    // 돌아다니게 되면서 alwaysOnTop 을 뗐다. 화분 뒤로 가면 실제로 가려진다.
+    box = ArtBox(size = Size(56f, 78f), anchor = Offset(28f, 74f)),
+    movable = false,
+    resId = 0, // 아직 에셋 없음 → fallback 사용
+    frameWidth = 56,
+    frameHeight = 78,
+    columns = 4,
+    frameCount = 8,
+    fps = 6,
+) { frame -> drawDog(frame, coat) }
 
 /** 사람이 읽는 이름. 나중에 아이템 목록 UI 에서 쓴다. */
 val ItemLabels: Map<String, String> = mapOf(
@@ -123,8 +130,7 @@ val ItemLabels: Map<String, String> = mapOf(
     "waterbowl" to "물그릇",
     "plant" to "화분",
     "lantern" to "무드등",
-    RoomDefaults.DOG_ID to "강아지",
-)
+) + DogCoat.ALL.associate { it.id to "강아지 (${it.label})" }
 
 /**
  * 선언(spec)을 그리기 가능한 형태(art)로 해석한다.
