@@ -98,16 +98,15 @@ val ItemSpecs: Map<String, ItemArtSpec> = mapOf(
         drawRect(RoomPalette.GhostInvalid, size = Size(36f, 48f))
     },
 
-) + DogCoat.ALL.associate { it.id to dogSpec(it) }
+) + DogBreed.ALL.associate { it.id to dogSpec(it) }
 
 /**
- * 강아지는 털색마다 **따로 등록된 아트**다. `DogActor.artId` 가 이 키를 가리키므로
- * 렌더러는 색을 전혀 모른 채 평소처럼 `catalog[dog.artId]` 만 하면 된다.
+ * 강아지는 **견종마다** 따로 등록된 아트다. `DogActor.breed.id` 가 이 키다.
+ * 털색은 아트 키가 아니라 [DogCoat] 로 따로 넘어간다 — 형태와 색이 다른 축이라서.
  *
- * 견종별 PNG 시트가 생기면 색마다 `resId` 만 채워 넣으면 되고, 색을 하나 늘리는 것도
- * [DogCoat.ALL] 에 한 줄이다.
+ * 견종별 PNG 시트가 생기면 여기 `resId` 만 채워 넣으면 된다.
  */
-private fun dogSpec(coat: DogCoat) = ItemArtSpec.Sheet(
+private fun dogSpec(breed: DogBreed) = ItemArtSpec.Sheet(
     // 돌아다니게 되면서 alwaysOnTop 을 뗐다. 화분 뒤로 가면 실제로 가려진다.
     box = ArtBox(size = Size(56f, 78f), anchor = Offset(28f, 74f)),
     movable = false,
@@ -117,7 +116,7 @@ private fun dogSpec(coat: DogCoat) = ItemArtSpec.Sheet(
     columns = 4,
     frameCount = 8,
     fps = 6,
-) { frame -> drawDog(frame, coat) }
+) { frame -> drawDogBreed(breed, frame) }
 
 /** 사람이 읽는 이름. 나중에 아이템 목록 UI 에서 쓴다. */
 val ItemLabels: Map<String, String> = mapOf(
@@ -130,7 +129,7 @@ val ItemLabels: Map<String, String> = mapOf(
     "waterbowl" to "물그릇",
     "plant" to "화분",
     "lantern" to "무드등",
-) + DogCoat.ALL.associate { it.id to "강아지 (${it.label})" }
+) + DogBreed.ALL.associate { it.id to it.label }
 
 /**
  * 선언(spec)을 그리기 가능한 형태(art)로 해석한다.

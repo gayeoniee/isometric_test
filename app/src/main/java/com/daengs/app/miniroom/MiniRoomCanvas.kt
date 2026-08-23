@@ -116,7 +116,7 @@ fun MiniRoomCanvas(
                     // 가구 뒤에 반쯤 가려진 강아지도 그 자리를 누르면 잡힌다.
                     if (!editingNow && herd != null) {
                         val hit = herd.sortedByDepth().asReversed().firstOrNull { d ->
-                            val art = catalog[d.artId] ?: return@firstOrNull false
+                            val art = catalog[d.breed.id] ?: return@firstOrNull false
                             d.hitTest(down.position, art, g)
                         }
                         if (hit != null) {
@@ -262,7 +262,7 @@ fun MiniRoomCanvas(
                 fun DrawScope.flushDogsUpTo(depth: Int) {
                     while (di < dogs.size && dogs[di].depthCell < depth) {
                         val dog = dogs[di]
-                        catalog[dog.artId]?.let { drawDog(it, dog, g, t) }
+                        catalog[dog.breed.id]?.let { drawDog(it, dog, g, t) }
                         di++
                     }
                 }

@@ -5,6 +5,7 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.unit.IntOffset
+import com.daengs.app.miniroom.art.DogBreed
 import com.daengs.app.miniroom.art.DogCoat
 import kotlin.math.abs
 import kotlin.math.floor
@@ -23,11 +24,13 @@ import kotlin.random.Random
  */
 class DogActor(
     val id: Int,
+    /** 형태. 카탈로그 키(`breed.id`)이기도 하다. */
+    val breed: DogBreed,
     /**
-     * 이 강아지의 아트 키. 털색마다 카탈로그 항목이 따로 있어서
-     * ([com.daengs.app.miniroom.art.DogCoat]) 렌더러는 색을 몰라도 된다.
+     * 색. **형태와 다른 축이다** — 같은 견종을 색만 바꿔 여러 마리 낼 수 있고,
+     * 나중에 사진에서 뽑은 색을 여기 그대로 넣으면 된다.
      */
-    val artId: String,
+    val coat: DogCoat,
     /**
      * 덩치. **전부 1f — 마리 구분은 덩치가 아니라 털색으로 한다.**
      * 덩치를 흔들었더니 같은 견종인데 원근이 깨진 것처럼 보였다.
@@ -37,6 +40,13 @@ class DogActor(
     val sizeScale: Float,
     /** 격자 단위/초 */
     val speed: Float,
+    /**
+     * 대기 동작 시계를 마리마다 밀어주는 값(ms).
+     *
+     * 없으면 전 마리가 같은 `timeMs` 를 써서 **숨쉬기·꼬리 흔들기가 완벽히 동기화**된다.
+     * 세 마리가 한 몸처럼 까딱거려서 기계처럼 보인다 — 실기기에서 바로 티가 났다.
+     */
+    val animOffsetMs: Long,
 ) {
     var pos: Offset = Offset.Zero
     var target: Offset = Offset.Zero
@@ -48,6 +58,14 @@ class DogActor(
 
     /** 걸음 위상. 이동 거리에 비례해 늘어나서 속도와 자동으로 맞는다. */
     var phase: Float = 0f
+
+    /**
+     * 0 = 앉음, 1 = 일어섬. [moving] 을 따라가되 **천천히** 따라간다.
+     *
+     * 그림이 앉은 자세라 걸으려면 몸통을 들어올려 다리를 드러내야 하는데
+     * ([com.daengs.app.miniroom.art.DogPose]), 그걸 즉시 하면 몸이 순간이동한다.
+     */
+    var stand: Float = 0f
 }
 
 /**
@@ -72,15 +90,20 @@ class DogHerd(count: Int, seed: Int = 7) {
     }
 
     /**
-     * 털색은 **뽑지 않고 차례대로 돌린다.** 무작위로 뽑으면 세 마리가 다 크림색으로
-     * 나오는 판이 나와서, 여러 마리라는 게 눈에 안 들어온다.
+     * 견종은 **뽑지 않고 차례대로 돌린다.** 무작위로 뽑으면 네 마리가 다 같은 견종으로
+     * 나오는 판이 생겨서, 여러 마리라는 게 눈에 안 들어온다.
+     * 털색은 일단 견종의 기본색을 쓴다 — 나중에 사진에서 뽑은 색으로 대체될 자리다.
      */
     private fun newDog(i: Int): DogActor {
         val d = DogActor(
             id = i,
-            artId = DogCoat.ALL[i % DogCoat.ALL.size].id,
+            breed = DogBreed.ALL[i % DogBreed.ALL.size],
+            coat = DogBreed.ALL[i % DogBreed.ALL.size].coat,
             sizeScale = 1f,
             speed = 0.55f + rnd.nextFloat() * 0.5f,
+            // 무작위가 아니라 대기 주기(8프레임 / 6fps ≈ 1333ms)를 마리 수로 나눠 흩는다.
+            // 무작위면 둘이 우연히 겹쳐서 여전히 같이 움직이는 판이 나온다.
+            animOffsetMs = i * 430L + rnd.nextLong(140),
         )
         d.pos = randomSpot()
         d.target = randomSpot()
@@ -226,7 +249,9 @@ class DogHerd(count: Int, seed: Int = 7) {
             val delta = d.target - d.pos
             val dist = delta.getDistance()
             if (dist < 0.06f) {
-                d.restUntil = nowMs + 700L + rnd.nextLong(2200)
+                // 오래 쉰다. 계속 돌아다니면 방이 소란스럽고, 원래 원한 그림은
+                // "제자리에서 꼬리 흔들기" 쪽이다. 여기 한 곳만 보면 된다.
+                d.restUntil = nowMs + 2500L + rnd.nextLong(5000)
                 d.target = freeSpot(blocked)
                 d.moving = false
                 continue
@@ -255,6 +280,13 @@ class DogHerd(count: Int, seed: Int = 7) {
             d.pos = next
             d.moving = true
             d.phase += gained * 9f
+        }
+
+        // 앉기 <-> 서기. 위 루프가 `continue` 로 여러 군데서 빠져나가므로 여기서 한 번에 민다.
+        // 0.18초쯤 걸려 자세가 바뀐다 — 즉시 바꾸면 몸이 순간이동한다.
+        val k = (dt * 5.5f).coerceAtMost(1f)
+        for (d in dogs) {
+            d.stand += ((if (d.moving) 1f else 0f) - d.stand) * k
         }
     }
 

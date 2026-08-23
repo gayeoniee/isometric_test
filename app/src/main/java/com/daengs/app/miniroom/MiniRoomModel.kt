@@ -99,6 +99,9 @@ object RoomDefaults {
         PlacedItem(8L, "humanbed", 0, 1),
     )
 
-    /** 방에 돌아다니는 강아지 수. 3마리 / 10마리 비교용으로 여기만 바꾸면 된다. */
-    const val DOG_COUNT = 3
+    /**
+     * 방에 돌아다니는 강아지 수. 여기만 바꾸면 된다.
+     * 지금은 견종 4종을 다 보려고 4마리 — 넘으면 앞에서부터 다시 쓴다.
+     */
+    const val DOG_COUNT = 4
 }
