@@ -35,35 +35,37 @@ class RoomCodecTest {
     @Test
     fun `버전이 다르면 통째로 버린다`() {
         val v1 = RoomCodec.encode(sample)
-        assertNull("옛 형식을 새 코드로 잘못 해석하면 안 된다", RoomCodec.decode(v1.replace("v3", "v2")))
+        assertNull("옛 형식을 새 코드로 잘못 해석하면 안 된다", RoomCodec.decode(v1.replace("v4", "v3")))
         assertNull(RoomCodec.decode("1,rug,2,2,0"))
     }
 
     @Test
     fun `망가진 줄이 하나라도 있으면 전부 버린다`() {
-        assertNull("필드 수가 모자람", RoomCodec.decode("v3;1,rug,2,2"))
-        assertNull("숫자가 아님", RoomCodec.decode("v3;x,rug,2,2,0"))
-        assertNull("itemId 가 빔", RoomCodec.decode("v3;1,,2,2,0"))
+        assertNull("필드 수가 모자람", RoomCodec.decode("v4;1,rug,2,2"))
+        assertNull("숫자가 아님", RoomCodec.decode("v4;x,rug,2,2,0"))
+        assertNull("itemId 가 빔", RoomCodec.decode("v4;1,,2,2,0"))
     }
 
     @Test
     fun `격자 밖 좌표는 버린다`() {
         // 격자 크기를 줄이는 변경이 있었을 때 옛 데이터가 밖에 남는 경우 (GRID=12)
-        assertNull(RoomCodec.decode("v3;1,rug,12,2,0"))
-        assertNull(RoomCodec.decode("v3;1,rug,2,-1,0"))
+        assertNull(RoomCodec.decode("v4;1,rug,12,2,0"))
+        assertNull(RoomCodec.decode("v4;1,rug,2,-1,0"))
     }
 
     @Test
     fun `방향 값이 범위를 넘으면 잘라 넣는다`() {
         // 방향 수가 줄어든 경우. 이건 좌표와 달리 방을 못 쓰게 만들지 않으므로 살린다.
-        val r = RoomCodec.decode("v3;1,rug,2,2,7")!!
+        val r = RoomCodec.decode("v4;1,rug,2,2,7")!!
         assertEquals(PlacedItem.FACINGS - 1, r.single().facing)
     }
 
     @Test
     fun `아이템 id 에 구분자가 없어야 한다`() {
-        // 카탈로그 id 규칙(소문자·숫자·밑줄)이 지켜지는지 확인 — 깨지면 저장이 망가진다
-        val bad = com.daengs.app.miniroom.art.ItemSpecs.keys.filter { it.contains(',') || it.contains(';') }
+        // 저장 형식이 `;` 로 레코드를, `,` 로 필드를 가른다. id 에 그 글자가 들어가면
+        // 저장이 통째로 망가진다. 테마가 늘어도 id 는 그대로여야 하므로 전 테마를 본다.
+        val ids = RoomTheme.ALL.flatMap { com.daengs.app.miniroom.art.itemSpecs(it).keys }.toSet()
+        val bad = ids.filter { it.contains(',') || it.contains(';') }
         assertEquals(emptyList<String>(), bad)
     }
 }

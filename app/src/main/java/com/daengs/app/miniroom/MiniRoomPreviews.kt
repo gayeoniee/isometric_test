@@ -23,7 +23,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.daengs.app.miniroom.art.ItemArtSpec
 import com.daengs.app.miniroom.art.ItemLabels
-import com.daengs.app.miniroom.art.ItemSpecs
+import com.daengs.app.miniroom.RoomTheme
+import com.daengs.app.miniroom.art.itemSpecs
 import com.daengs.app.miniroom.art.rememberItemCatalog
 import com.daengs.app.ui.theme.CreamBg
 import com.daengs.app.ui.theme.DaengsTheme
@@ -87,7 +88,10 @@ private fun ArtSheetPreview() {
             Modifier.background(CreamBg).padding(10.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            ItemSpecs.entries.chunked(3).forEach { rowSpecs ->
+            // 아트가 전부 PNG 라 여기서는 그림이 안 그려진다(Res 는 리소스 해석이
+            // @Composable 이라 Canvas 안에서 못 부른다). 대신 **상자와 기준점**이 보이므로
+            // 앵커를 맞출 때 쓸모가 있다 — 그게 원래 이 미리보기의 목적이었다.
+            itemSpecs(RoomTheme.DEFAULT).entries.chunked(3).forEach { rowSpecs ->
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     rowSpecs.forEach { (id, spec) ->
                         Column(Modifier.size(125.dp, 140.dp)) {

@@ -203,9 +203,8 @@ fun DrawScope.drawDog(
                 } else {
                     // 도형 폴백은 **걸음과 털색까지** 받는다. 카탈로그의 `fallback` 은
                     // 프레임만 받아서(무드등과 같은 타입이라 시그니처를 못 바꾼다)
-                    // 다리를 못 움직이고 색도 견종 기본색에 고정된다.
                     // 그림 함수는 하나라 미리보기와 방 안 그림이 갈라지지 않는다.
-                    drawDogBreed(dog.breed, frame, dog.coat, DogPose(dog.phase, dog.stand))
+                    drawDogBreed(dog.breed, frame, DogPose(dog.phase, dog.stand))
                 }
             }
         }

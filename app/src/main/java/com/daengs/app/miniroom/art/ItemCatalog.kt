@@ -11,6 +11,8 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.res.imageResource
 import androidx.compose.ui.unit.IntSize
 import com.daengs.app.R
+import com.daengs.app.miniroom.ItemIds
+import com.daengs.app.miniroom.RoomTheme
 import com.daengs.app.miniroom.sprite.SpriteSheet
 import com.daengs.app.ui.theme.RoomPalette
 
@@ -35,78 +37,35 @@ class ItemCatalog(private val map: Map<String, ItemArt>) {
  *
  * 강아지는 이미 [ItemArtSpec.Sheet] 라서 `resId = 0` 을 진짜 시트로만 바꾸면 된다.
  */
-val ItemSpecs: Map<String, ItemArtSpec> = mapOf(
-
-    // 소품 8종 — frankie516c/dog-training-rag 의 픽셀 아트 PNG 다.
-    //
-    // 크기는 저쪽 목업의 값에서 환산했다. 저쪽은 `width` 를 **스테이지 폭의 %** 로
-    // 적고 높이를 `aspectRatio` 로 유도하는데, 우리 기본 단위가 방 PNG 픽셀이므로
-    //   size.width  = width% x 1122
-    //   size.height = size.width / aspectRatio
-    //   anchor      = artAnchor% x size
-    // 로 곧장 옮겨진다.
-    //
-    // footprint 는 저쪽 16 격자 기준이라 우리 12 에 맞춰 x0.75 했다.
-
-    "rug-cream" to res(
-        R.drawable.modular_rug_v1_final,
-        w = 437.6f, h = 234.9f, anchorX = 0.50f, anchorY = 0.50f,
-        cols = 5, rows = 5, flat = true,
-    ),
-
-    "rug-sage" to res(
-        R.drawable.modular_rug_sage_v1_final,
-        w = 437.6f, h = 235.5f, anchorX = 0.50f, anchorY = 0.50f,
-        cols = 5, rows = 5, flat = true,
-    ),
-
-    "plant-tall" to res(
-        R.drawable.modular_plant_v1_final,
-        w = 101.0f, h = 162.8f, anchorX = 0.50f, anchorY = 0.93f,
-        cols = 1, rows = 2,
-    ),
-
-    "doghouse-sage" to res(
-        R.drawable.modular_doghouse_v1_final,
-        w = 218.8f, h = 224.7f, anchorX = 0.50f, anchorY = 0.78f,
-        cols = 2, rows = 3,
-    ),
-
-    "ball-sage" to res(
-        R.drawable.modular_ball_v1_final,
-        w = 53.9f, h = 55.5f, anchorX = 0.50f, anchorY = 0.94f,
-        cols = 1, rows = 1,
-    ),
-
-    "cabinet-sage" to res(
-        R.drawable.modular_cabinet_v1_final,
-        w = 246.8f, h = 242.4f, anchorX = 0.50f, anchorY = 0.77f,
-        cols = 4, rows = 2,
-    ),
-
-    "toy-basket" to res(
-        R.drawable.modular_toy_basket_v1_final,
-        w = 101.0f, h = 87.0f, anchorX = 0.50f, anchorY = 0.78f,
-        cols = 2, rows = 2,
-    ),
-
-    "feeding-bowls" to res(
-        R.drawable.modular_feeding_bowls_v1_final,
-        w = 101.0f, h = 51.6f, anchorX = 0.50f, anchorY = 0.58f,
-        cols = 2, rows = 1,
-    ),
-
-) + DogBreed.ALL.associate { it.id to dogSpec(it) }
+/**
+ * 소품 규격 — **테마와 무관한 부분**이다.
+ *
+ * 저쪽 테마 팩은 크기와 실루엣을 원본 그대로 유지한 채 색만 바꾼다. 그래서 상자·
+ * 기준점·발자국은 테마가 바뀌어도 같고, 바뀌는 건 그림 하나뿐이다.
+ *
+ * 값은 저쪽 목업에서 환산했다. 저쪽은 `width` 를 **스테이지 폭의 %** 로 적고 높이를
+ * `aspectRatio` 로 유도하는데, 우리 기본 단위가 방 PNG 픽셀이라 곧장 옮겨진다.
+ *   size.width  = width% x 1122
+ *   size.height = size.width / aspectRatio
+ *   anchor      = artAnchor% x size
+ * footprint 는 저쪽 16 격자 기준이라 우리 12 에 맞춰 x0.75 했다.
+ */
+private val ItemBoxes: Map<String, ArtBox> = mapOf(
+    ItemIds.RUG to box(437.6f, 235.5f, 0.50f, 0.50f, 5, 5, flat = true),
+    ItemIds.RUG_CREAM to box(437.6f, 234.9f, 0.50f, 0.50f, 5, 5, flat = true),
+    ItemIds.PLANT to box(101.0f, 162.8f, 0.50f, 0.93f, 1, 2),
+    ItemIds.DOGHOUSE to box(218.8f, 224.7f, 0.50f, 0.78f, 2, 3),
+    ItemIds.BALL to box(53.9f, 55.5f, 0.50f, 0.94f, 1, 1),
+    ItemIds.CABINET to box(246.8f, 242.4f, 0.50f, 0.77f, 4, 2),
+    ItemIds.BASKET to box(101.0f, 87.0f, 0.50f, 0.78f, 2, 2),
+    ItemIds.BOWLS to box(101.0f, 51.6f, 0.50f, 0.58f, 2, 1),
+)
 
 /**
- * 소품 한 줄을 만든다.
- *
- * 값이 전부 PNG 에서 나오므로 인자가 곧 그림의 규격이다.
- * [anchorX]/[anchorY] 는 그림 안에서 **바닥에 닿는 점**의 비율(0..1)이다 —
- * 세워두는 물건은 아래쪽(0.8 언저리), 바닥에 눕는 러그는 한가운데(0.5)다.
+ * @param anchorX 그림 안에서 **바닥에 닿는 점**의 비율(0..1). 세워두는 물건은
+ *   아래쪽(0.8 언저리), 바닥에 눕는 러그는 한가운데(0.5)다.
  */
-private fun res(
-    @DrawableRes resId: Int,
+private fun box(
     w: Float,
     h: Float,
     anchorX: Float,
@@ -114,25 +73,30 @@ private fun res(
     cols: Int,
     rows: Int,
     flat: Boolean = false,
-) = ItemArtSpec.Res(
-    box = ArtBox(
-        footprint = IntSize(cols, rows),
-        size = Size(w, h),
-        anchor = Offset(w * anchorX, h * anchorY),
-        flat = flat,
-    ),
-    resId = resId,
-    // 픽셀 아트라 보간을 끈다. 기본값(Medium)이면 확대할 때 뿌옇게 번진다.
-    filterQuality = FilterQuality.None,
+) = ArtBox(
+    footprint = IntSize(cols, rows),
+    size = Size(w, h),
+    anchor = Offset(w * anchorX, h * anchorY),
+    flat = flat,
 )
 
+/** 이 테마의 소품 + 견종 전체. */
+fun itemSpecs(theme: RoomTheme): Map<String, ItemArtSpec> =
+    ItemBoxes.mapValues { (id, box) ->
+        ItemArtSpec.Res(
+            box = box,
+            resId = theme.art(id),
+            // 픽셀 아트라 보간을 끈다. 기본값(Medium)이면 확대할 때 뿌옇게 번진다.
+            filterQuality = FilterQuality.None,
+        )
+    } + DogBreed.ALL.associate { it.id to dogSpec(it) }
+
 /**
- * 강아지. 저쪽 4프레임 워크 시트를 그대로 쓴다.
+ * 강아지. 저쪽 워크 시트를 그대로 쓴다.
  *
  * 시트는 2328x568 짜리 가로 4칸이라 한 프레임이 582x568 이다. 화면에서는 저쪽
  * `visualWidth 13.5%` 를 따라 1122 x 0.135 = 151.5 px 폭으로 그린다.
- *
- * 견종별 시트가 더 생기면 [DogBreed] 표에 줄을 추가하고 여기서 시트만 갈아끼우면 된다.
+ * 견종이 늘어도 규격이 같으므로 [DogBreed] 표에 줄만 추가하면 된다.
  */
 private fun dogSpec(breed: DogBreed) = ItemArtSpec.Sheet(
     box = ArtBox(
@@ -152,16 +116,16 @@ private fun dogSpec(breed: DogBreed) = ItemArtSpec.Sheet(
 private const val DOG_W = 151.5f
 private const val DOG_H = 147.8f
 
-/** 사람이 읽는 이름. 나중에 아이템 목록 UI 에서 쓴다. */
+/** 사람이 읽는 이름. 인벤토리 목록에서 쓴다. */
 val ItemLabels: Map<String, String> = mapOf(
-    "rug-cream" to "크림 러그",
-    "rug-sage" to "세이지 러그",
-    "plant-tall" to "큰 화분",
-    "doghouse-sage" to "강아지 집",
-    "ball-sage" to "초록 공",
-    "cabinet-sage" to "세이지 수납장",
-    "toy-basket" to "장난감 바구니",
-    "feeding-bowls" to "밥그릇 세트",
+    ItemIds.RUG to "러그",
+    ItemIds.RUG_CREAM to "크림 러그",
+    ItemIds.PLANT to "큰 화분",
+    ItemIds.DOGHOUSE to "강아지 집",
+    ItemIds.BALL to "공",
+    ItemIds.CABINET to "수납장",
+    ItemIds.BASKET to "장난감 바구니",
+    ItemIds.BOWLS to "밥그릇 세트",
 ) + DogBreed.ALL.associate { it.id to it.label }
 
 /**
@@ -169,7 +133,8 @@ val ItemLabels: Map<String, String> = mapOf(
  * 리소스 해석이 @Composable 이라 이 단계만 합성 안에 있고, 그리기 단계는 순수하다.
  */
 @Composable
-fun rememberItemCatalog(specs: Map<String, ItemArtSpec> = ItemSpecs): ItemCatalog {
+fun rememberItemCatalog(theme: RoomTheme = RoomTheme.DEFAULT): ItemCatalog {
+    val specs = itemSpecs(theme)
     val resolved = LinkedHashMap<String, ItemArt>(specs.size)
     for ((id, spec) in specs) {
         resolved[id] = when (spec) {
@@ -211,5 +176,6 @@ fun rememberItemCatalog(specs: Map<String, ItemArtSpec> = ItemSpecs): ItemCatalo
                 )
         }
     }
-    return remember(specs) { ItemCatalog(resolved) }
+    // 테마가 바뀌면 그림이 통째로 달라지므로 테마 id 를 키로 잡는다.
+    return remember(theme.id) { ItemCatalog(resolved) }
 }

@@ -86,7 +86,8 @@ fun HomeScreen(
         snapshotFlow { roomState.items.toList() }
             .collect { store.saveItems(it) }
     }
-    val catalog = rememberItemCatalog()
+    // 테마마다 소품 그림이 다르므로 카탈로그가 테마를 알아야 한다.
+    val catalog = rememberItemCatalog(roomTheme)
 
     Scaffold(
         modifier = modifier.fillMaxSize(),

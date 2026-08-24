@@ -6,7 +6,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.unit.IntOffset
 import com.daengs.app.miniroom.art.DogBreed
-import com.daengs.app.miniroom.art.DogCoat
 import kotlin.math.abs
 import kotlin.math.floor
 import kotlin.random.Random
@@ -27,12 +26,7 @@ class DogActor(
     /** 형태. 카탈로그 키(`breed.id`)이기도 하다. */
     val breed: DogBreed,
     /**
-     * 색. **형태와 다른 축이다** — 같은 견종을 색만 바꿔 여러 마리 낼 수 있고,
-     * 나중에 사진에서 뽑은 색을 여기 그대로 넣으면 된다.
-     */
-    val coat: DogCoat,
-    /**
-     * 덩치. **전부 1f — 마리 구분은 덩치가 아니라 털색으로 한다.**
+     * 덩치. **전부 1f — 마리 구분은 덩치가 아니라 견종으로 한다.**
      * 덩치를 흔들었더니 같은 견종인데 원근이 깨진 것처럼 보였다.
      * 필드를 남겨두는 건 히트 판정·그리기가 이미 이걸 타고 있어서,
      * 나중에 새끼 강아지 같은 걸 넣을 때 여기만 건드리면 되기 때문이다.
@@ -104,15 +98,13 @@ class DogHerd(count: Int, seed: Int = 7) {
     }
 
     /**
-     * 견종은 **뽑지 않고 차례대로 돌린다.** 무작위로 뽑으면 네 마리가 다 같은 견종으로
+     * 견종은 **뽑지 않고 차례대로 돌린다.** 무작위로 뽑으면 여러 마리가 다 같은 견종으로
      * 나오는 판이 생겨서, 여러 마리라는 게 눈에 안 들어온다.
-     * 털색은 일단 견종의 기본색을 쓴다 — 나중에 사진에서 뽑은 색으로 대체될 자리다.
      */
     private fun newDog(i: Int): DogActor {
         val d = DogActor(
             id = i,
             breed = DogBreed.ALL[i % DogBreed.ALL.size],
-            coat = DogBreed.ALL[i % DogBreed.ALL.size].coat,
             sizeScale = 1f,
             speed = 0.55f + rnd.nextFloat() * 0.5f,
             // 무작위가 아니라 대기 주기(8프레임 / 6fps ≈ 1333ms)를 마리 수로 나눠 흩는다.

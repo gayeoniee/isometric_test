@@ -48,22 +48,34 @@ data class DogCoat(
 /**
  * 견종 하나 = 워크 시트 한 장.
  *
+ * 시트는 전부 2328x568 짜리 가로 4프레임이라 규격이 같다. 그래서 견종을 늘리는 일이
+ * **표에 한 줄 넣는 것**으로 끝난다 — 도형을 조립하던 시절에는 털결·귀·꼬리 축을
+ * 일일이 골라야 했다.
+ *
  * [id] 가 그대로 카탈로그 키다 ([ItemCatalog] 가 `DogBreed.ALL` 로 자동 등록한다).
- * 저쪽에서 시트가 오는 대로 줄만 추가하면 된다 — 시트 규격(가로 4프레임)은 같다.
  */
 @Immutable
 enum class DogBreed(
     val id: String,
     val label: String,
     @DrawableRes val sheetRes: Int,
-    val coat: DogCoat,
 ) {
-    TOY_POODLE(
-        "dog_toy_poodle",
-        "크림 토이푸들",
-        R.drawable.modular_dog_poodle_walk_stable_v2,
-        DogCoat.CREAM,
-    );
+    TOY_POODLE("dog_toy_poodle", "토이푸들", R.drawable.dog_toy_poodle),
+    BEAGLE("dog_beagle", "비글", R.drawable.dog_beagle),
+    BICHON_FRISE("dog_bichon_frise", "비숑프리제", R.drawable.dog_bichon_frise),
+    BORDER_COLLIE("dog_border_collie", "보더콜리", R.drawable.dog_border_collie),
+    CHIHUAHUA("dog_chihuahua", "치와와", R.drawable.dog_chihuahua),
+    FRENCH_BULLDOG("dog_french_bulldog", "프렌치불독", R.drawable.dog_french_bulldog),
+    JINDO("dog_jindo", "진돗개", R.drawable.dog_jindo),
+    LABRADOR_RETRIEVER("dog_labrador_retriever", "래브라도 리트리버", R.drawable.dog_labrador_retriever),
+    MALTESE("dog_maltese", "말티즈", R.drawable.dog_maltese),
+    POMERANIAN("dog_pomeranian", "포메라니안", R.drawable.dog_pomeranian),
+    PUG("dog_pug", "퍼그", R.drawable.dog_pug),
+    SCHNAUZER("dog_schnauzer", "슈나우저", R.drawable.dog_schnauzer),
+    SHIBA_INU("dog_shiba_inu", "시바견", R.drawable.dog_shiba_inu),
+    SIBERIAN_HUSKY("dog_siberian_husky", "시베리안 허스키", R.drawable.dog_siberian_husky),
+    WELSH_CORGI("dog_welsh_corgi", "웰시코기", R.drawable.dog_welsh_corgi),
+    YORKSHIRE_TERRIER("dog_yorkshire_terrier", "요크셔테리어", R.drawable.dog_yorkshire_terrier);
 
     companion object {
         val ALL: List<DogBreed> = entries
@@ -109,7 +121,6 @@ data class DogPose(
 fun DrawScope.drawDogBreed(
     breed: DogBreed,
     frame: Int,
-    coat: DogCoat = breed.coat,
     pose: DogPose = DogPose.Idle,
 ) {
     drawRect(com.daengs.app.ui.theme.RoomPalette.GhostInvalid, Offset.Zero, Size(151.5f, 147.8f))

@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.daengs.app.miniroom.RoomDefaults
+import androidx.compose.ui.graphics.Color
 import com.daengs.app.miniroom.RoomTheme
 import com.daengs.app.miniroom.art.ItemArt
 import com.daengs.app.miniroom.art.ItemCatalog
@@ -277,13 +278,18 @@ private fun ThemeSwatch(theme: RoomTheme, selected: Boolean, onClick: () -> Unit
             val bottom = Offset(cx, oy + th)
             val left = Offset(cx - tw / 2f, oy + th / 2f)
 
-            drawPath(poly(listOf(top, left, left - Offset(0f, wallH), top - Offset(0f, wallH))), theme.wallLeft)
-            drawPath(poly(listOf(top, right, right - Offset(0f, wallH), top - Offset(0f, wallH))), theme.wallRight)
-            drawPath(poly(listOf(top, right, bottom, left)), theme.floorLight)
+            // 벽 두 면은 같은 색에서 오른쪽만 살짝 어둡게 — 스와치라 정확할 필요는 없고
+            // 입체로 보이기만 하면 된다. 실제 방은 그림이라 이 색을 안 쓴다.
+            drawPath(poly(listOf(top, left, left - Offset(0f, wallH), top - Offset(0f, wallH))), theme.swatchWall)
+            drawPath(
+                poly(listOf(top, right, right - Offset(0f, wallH), top - Offset(0f, wallH))),
+                androidx.compose.ui.graphics.lerp(theme.swatchWall, Color.Black, 0.10f),
+            )
+            drawPath(poly(listOf(top, right, bottom, left)), theme.swatchFloor)
             // 문 — 포인트 색이 어디에 쓰이는지 보이게
             val dx = cx - tw * 0.28f
             drawRoundRect(
-                theme.doorFill,
+                theme.swatchAccent,
                 Offset(dx, oy + th * 0.12f - wallH * 0.72f),
                 Size(tw * 0.16f, wallH * 0.62f),
                 androidx.compose.ui.geometry.CornerRadius(tw * 0.08f, tw * 0.08f),

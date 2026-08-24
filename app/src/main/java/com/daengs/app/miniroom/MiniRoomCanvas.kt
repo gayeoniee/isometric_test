@@ -68,7 +68,8 @@ fun MiniRoomCanvas(
 
     // 방 그림. 벽·바닥·창문·울타리가 전부 여기 구워져 있다.
     // 문만 예외로 이 그림에서 오려내 다시 그린다 ([drawDoorOpening]).
-    val roomImage = ImageBitmap.imageResource(R.drawable.modular_empty_room_v1)
+    // 테마가 바뀌면 그림 전체가 바뀐다 — 색을 덧칠하는 게 아니라 다른 그림이다.
+    val roomImage = ImageBitmap.imageResource(theme.room)
 
     // 0 = 닫힘, 1 = 활짝
     val doorOpen = remember { Animatable(0f) }
