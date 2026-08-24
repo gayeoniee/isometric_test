@@ -36,13 +36,37 @@ import kotlin.math.sin
 //
 // | | 값 | 왜 |
 // |---|---|---|
-// | 등신 | **2.2** (머리 지름 29 / 전체 ~64) | 치비 표준 2~2.5 |
+// | 등신 | **1.7** (머리 38 / 전체 65) | 스티커 캐릭터 비율. 실루엣의 대부분이 머리 |
+// | 몸통 | 머리의 **42%** (16 / 38), 폭은 **50%** | 안 보여도 된다 (아래 알파카 항목) |
 // | 눈 크기 | 머리 높이의 **20%** | 교과서는 1/4 이상이지만 실기기에서 부담스러웠다 |
 // | 눈 위치 | 머리 위에서 **60%** 지점 (= 아래쪽) | 이게 제일 크게 먹힌다 |
 // | 주둥이 | 작게, **낮게** | 길고 높으면 어른 개가 된다 |
 // | 볼터치·입 | 있음 | 싸고 확실한 귀여움 |
 //
+// **접지점 (28, 74) 는 건드리지 않았다.** 그래서 배치·그림자·통행 판정·앞뒤 정렬이
+// 전부 무영향이다. 머리를 키우고 몸통을 줄인 만큼 전체 높이가 64 → 65 로 제자리라,
+// 방 안에서 차지하는 자리도 그대로다.
+//
+// ## 몸통을 또렷하게 만들수록 알파카가 된다
+//
+// 등신을 내리면서 몸통 바닥이 올라가 **발이 몸에서 떨어져 둥둥 떴다.** 발은 접지점(74)에
+// 묶여 있으니 몸이 짧아진 만큼 그대로 틈이 된다. 이걸 몸통을 다시 키워서 메우려 했더니
+// **알파카**가 나왔다 — 몸통이 머리만큼 넓고 세로로 길면 목 있는 짐승 실루엣이라서다.
+//
+// 맞는 해법은 반대였다. **몸통·꼬리·발은 안 보여도 된다.** 스티커 캐릭터는 머리가
+// 실루엣의 거의 전부고, 나머지는 밑에서 삐죽 나오는 힌트 정도다. 셋을 또렷하게
+// 그리려고 애쓸수록 네발짐승 쪽으로 끌려간다.
+//
+// **견종은 그래도 안 죽는다.** 털결이 채우기 텍스처가 아니라 [fur] 의 외곽 혹
+// (=실루엣 윤곽)이고, 귀·머리장식·색은 전부 머리에 붙어 있기 때문이다. 몸을 지워도
+// 견종을 가르는 축은 머리 안에 다 남는다.
+//
+// 다만 늘어진 귀는 **머리 실루엣 밖으로 걸쳐야** 한다. 머리를 키운 뒤 예전 자리에
+// 그대로 뒀더니 큰 머리 한가운데 박혀서 얼굴의 **얼룩**이 됐다.
+//
 // 좌표계: ArtBox 상자 56x78, 바닥에 닿는 점은 (28, 74).
+//   정면 — 머리 y 9..47 (중심 28, rx 20) · 몸통 y 47..63 (중심 55, rx 10) · 발바닥 74.5
+//   옆   — 머리 y 9..47 (중심 28, x 15..53) · 몸통 (중심 20/55, x 9..31)
 // ---------------------------------------------------------------------------
 
 /**
@@ -437,50 +461,57 @@ private fun DrawScope.dogFront(breed: DogBreed, coat: DogCoat, frame: Int) {
     val wag = floatArrayOf(-16f, -4f, 8f, 16f, 8f, -4f, -16f, -22f)[f]
     val flick = if (f == 2 || f == 3) -5f else 0f
 
-    // 뒷발 — 옆으로 살짝 비죽. 네발짐승이라는 걸 알린다
-    for (x in floatArrayOf(12.5f, 43.5f)) paw(breed.fur, coat.shade, Offset(x, 66f), 4.2f)
+    // 뒷발 — 거의 안 보인다. 머리 밑으로 살짝 비죽 나오는 정도면 된다
+    for (x in floatArrayOf(17.5f, 38.5f)) paw(breed.fur, coat.shade, Offset(x, 64f), 3.5f)
 
     translate(0f, bob) {
-        tail(breed, coat, Offset(43f, 58f), dir = 1, angle = wag)
+        tail(breed, coat, Offset(37f, 55f), dir = 1, angle = wag)
 
-        // 몸통 — **머리보다 작다.** 치비 비율의 핵심
-        fur(breed.fur, coat.body, 28f, 58f, 15.5f, 13f)
-        drawOval(coat.shade.copy(alpha = 0.35f), Offset(17f, 57f), Size(22f, 12f))
-        if (breed.marked) drawOval(coat.shade, Offset(15f, 46f), Size(26f, 12f))
+        // 몸통 — **거의 안 보여도 된다.** 머리(38)에 몸통(16), 폭은 머리의 절반.
+        //
+        // 몸통을 또렷하게 만들려고 키울수록 알파카에 가까워진다. 목 있는 짐승
+        // 실루엣이 되기 때문이다. 스티커 캐릭터는 반대로 간다 — 머리가 실루엣의
+        // 거의 전부고 몸·꼬리·발은 밑에서 삐죽 나오는 힌트 정도다.
+        fur(breed.fur, coat.body, 28f, 55f, 10f, 8f)
+        drawOval(coat.shade.copy(alpha = 0.35f), Offset(21f, 54f), Size(14f, 7f))
+        // 등 안장 무늬는 뺐다 — 몸통이 이만큼 작아지니 흰 가슴 둘레에 **갈색 링**으로
+        // 보여서 목걸이 낀 것 같았다. 비글은 긴 귀와 흰 주둥이만으로 충분히 읽힌다
 
-        for (x in floatArrayOf(21f, 35f)) paw(breed.fur, breed.markOr(coat.light), Offset(x, 69f), 5.2f)
-        fur(breed.fur, breed.markOr(coat.light), 28f, 55f, 9.5f, 8f, 0.4f)
+        // 발은 몸통 바닥(63)과 겹치게. 발 윗면이 63.5 다
+        for (x in floatArrayOf(22f, 34f)) paw(breed.fur, breed.markOr(coat.light), Offset(x, 69f), 5.5f)
+        fur(breed.fur, breed.markOr(coat.light), 28f, 54f, 6.5f, 5.5f, 0.4f)
 
         // 포메의 목 갈기 — 머리가 몸에 파묻힌 여우 실루엣
-        if (breed.crown == Crown.RUFF) fur(Fur.FLUFFY, coat.body, 28f, 49f, 17f, 10.5f, 0.15f)
+        if (breed.crown == Crown.RUFF) fur(Fur.FLUFFY, coat.body, 28f, 47f, 19f, 7f, 0.15f)
 
-        rotate(flick, Offset(28f, 24f)) {
+        rotate(flick, Offset(28f, 21f)) {
             if (!breed.ear.inFront) {
-                ear(breed, coat, 12.5f, 24f, -1, 1f)
-                ear(breed, coat, 43.5f, 24f, 1, 1f)
+                ear(breed, coat, 10f, 20f, -1, 1f)
+                ear(breed, coat, 46f, 20f, 1, 1f)
             }
 
-            fur(breed.fur, coat.body, 28f, 29f, 16f, 14.5f, 0.2f)
+            // 머리 — 실루엣의 거의 전부
+            fur(breed.fur, coat.body, 28f, 28f, 20f, 19f, 0.2f)
 
             if (breed.ear.inFront) {
-                ear(breed, coat, 19f, 17f, -1, 1f)
-                ear(breed, coat, 37f, 17f, 1, 1f)
+                ear(breed, coat, 17f, 11f, -1, 1.1f)
+                ear(breed, coat, 39f, 11f, 1, 1.1f)
             }
             when (breed.crown) {
-                Crown.TOPKNOT -> pom(coat.body, Offset(28f, 13f), 8f)
-                Crown.BOW -> bow(28f, 15f)
+                Crown.TOPKNOT -> pom(coat.body, Offset(28f, 7f), 10f)
+                Crown.BOW -> bow(28f, 10f)
                 else -> Unit
             }
         }
 
         // 주둥이는 작고 **낮게**
-        fur(Fur.SMOOTH, breed.markOr(coat.light), 28f, 41f, 8f * breed.muzzle, 5.6f)
-        blush(15.5f, 37f, 8.5f)
-        blush(40.5f, 37f, 8.5f)
+        fur(Fur.SMOOTH, breed.markOr(coat.light), 28f, 43.5f, 10f * breed.muzzle, 7.2f)
+        blush(12.3f, 38.5f, 10.5f)
+        blush(43.7f, 38.5f, 10.5f)
         // 눈은 머리 위에서 60% 지점 — 이게 귀여움을 가장 크게 좌우한다
-        eye(21.5f, 32f, 2.9f)
-        eye(34.5f, 32f, 2.9f)
-        snoutMarks(28f, 39.5f, 5.8f)
+        eye(19.8f, 32f, 3.8f)
+        eye(36.2f, 32f, 3.8f)
+        snoutMarks(28f, 42f, 7.4f)
     }
 }
 
@@ -497,10 +528,14 @@ private fun DrawScope.sideLeg(
     breed: DogBreed, coat: DogCoat, x: Float, lift: Float, dx: Float, far: Boolean,
 ) {
     val pawR = if (far) 4.2f else 5f
-    val pawY = if (far) 67f else 70f
-    val w = if (far) 7f else 8.5f
+    val pawY = if (far) 66f else 69f
+    val w = if (far) 6f else 7.5f
+    // 다리는 **짧은 뭉툭이**다. 예전엔 y 56 부터 뽑아서 기둥처럼 길었는데,
+    // 정면(앉은 자세)은 다리 없이 발만 그리므로 앉았다 걸을 때 다리가 튀어나왔다.
+    // 몸통 밑에서 살짝만 나오게 줄이면 두 자세 차이가 눈에 안 띈다.
+    val top = 61f
     translate(dx, -lift) {
-        drawRoundRect(coat.shade, Offset(x - w / 2f, 54f), Size(w, pawY - 54f), CornerRadius(w / 2f, w / 2f))
+        drawRoundRect(coat.shade, Offset(x - w / 2f, top), Size(w, pawY - top), CornerRadius(w / 2f, w / 2f))
         paw(breed.fur, if (far) coat.shade else breed.markOr(coat.light), Offset(x, pawY), pawR)
     }
 }
@@ -518,43 +553,49 @@ private fun DrawScope.dogSide(breed: DogBreed, coat: DogCoat, frame: Int, pose: 
     val farFront = max(0f, -s) * 3.4f
     val nearHind = farFront * 0.85f
 
-    sideLeg(breed, coat, 16f, farHind, -s * 1.2f, far = true)
-    sideLeg(breed, coat, 32f, farFront, s * 1.6f, far = true)
+    sideLeg(breed, coat, 18f, farHind, -s * 1.2f, far = true)
+    sideLeg(breed, coat, 29f, farFront, s * 1.6f, far = true)
 
-    tail(breed, coat, Offset(9f, 50f), dir = -1, angle = wag)
+    tail(breed, coat, Offset(7f, 51f), dir = -1, angle = wag)
 
-    fur(breed.fur, coat.body, 22f, 55f, 15.5f, 12.5f)
-    fur(breed.fur, coat.body, 11f, 53f, 10f, 10f, 0.3f)
-    drawOval(coat.shade.copy(alpha = 0.35f), Offset(11f, 55f), Size(23f, 11f))
-    if (breed.marked) drawOval(coat.shade, Offset(10f, 43f), Size(26f, 12f))
+    // 몸통 — 정면과 같다. **거의 안 보여도 된다.** 머리 뒤로 조금만 삐져나온다
+    fur(breed.fur, coat.body, 20f, 55f, 11f, 8.5f)
+    fur(breed.fur, coat.body, 13f, 53f, 7f, 7f, 0.3f)
+    drawOval(coat.shade.copy(alpha = 0.35f), Offset(12f, 54f), Size(16f, 7f))
+    // 등 안장 무늬 없음 — 정면과 같은 이유
 
-    sideLeg(breed, coat, 12f, nearHind, -s * 1.4f, far = false)
-    sideLeg(breed, coat, 28f, nearFront, s * 1.8f, far = false)
+    sideLeg(breed, coat, 15f, nearHind, -s * 1.4f, far = false)
+    sideLeg(breed, coat, 27f, nearFront, s * 1.8f, far = false)
 
-    fur(breed.fur, breed.markOr(coat.light), 31f, 52f, 8.5f, 8.5f, 0.4f)
-    if (breed.crown == Crown.RUFF) fur(Fur.FLUFFY, coat.body, 32f, 45f, 12.5f, 11f, 0.15f)
+    // 가슴 — 머리와 몸통을 잇는 다리(bridge). 이게 얇으면 목이 끊겨 보인다
+    fur(breed.fur, breed.markOr(coat.light), 28f, 51f, 7f, 7f, 0.4f)
+    if (breed.crown == Crown.RUFF) fur(Fur.FLUFFY, coat.body, 30f, 45f, 12f, 8f, 0.15f)
 
-    fur(breed.fur, coat.body, 36f, 30f, 14.5f, 13.5f, 0.2f)
+    // 머리 — 실루엣의 거의 전부
+    fur(breed.fur, coat.body, 34f, 28f, 19f, 19f, 0.2f)
 
     // 주둥이는 머리보다 **바깥으로** 나와야 옆모습으로 읽힌다.
     // 머리 안에 파묻히면 물개가 된다 — 실제로 그렇게 나왔었다.
-    fur(Fur.SMOOTH, breed.markOr(coat.light), 46.5f, 38f, 6.2f * breed.muzzle, 5.2f)
-    blush(43f, 36f, 8f)
-    eye(41f, 32f, 2.8f)
-    snoutMarks(48f, 36f, 5.2f)
+    fur(Fur.SMOOTH, breed.markOr(coat.light), 46f, 37.5f, 7.6f * breed.muzzle, 6.6f)
+    blush(43.5f, 35.5f, 10f)
+    eye(40f, 32f, 3.7f)
+    snoutMarks(48f, 36f, 6.6f)
 
     // 귀는 **머리보다 나중에.** 옆에서 보면 가까운 쪽 귀가 머리 앞으로 온다.
     // 먼저 그렸더니 머리에 통째로 가려져서 비글의 긴 귀가 사라졌다.
-    // 눈(x 41)보다 뒤(x 30)에 두어야 얼굴을 안 가린다.
-    rotate(flick + s * 3f, Offset(34f, 26f)) {
+    //
+    // 그리고 늘어진 귀는 **머리 실루엣 밖으로 걸쳐야** 귀로 읽힌다. 머리를 키운 뒤
+    // 예전 자리(x 29)에 그대로 뒀더니 큰 머리 한가운데 박혀서 **얼굴의 얼룩**이 됐다.
+    // 머리 왼쪽 끝(x 19)에 걸치게 빼야 밖으로 늘어진 게 보인다.
+    rotate(flick + s * 3f, Offset(32f, 22f)) {
         if (breed.ear.inFront) {
-            ear(breed, coat, 32f, 17f, -1, 0.9f)
+            ear(breed, coat, 28f, 11f, -1, 1.1f)
         } else {
-            ear(breed, coat, 30f, 25f, -1, 0.85f)
+            ear(breed, coat, 20f, 20f, -1, 0.95f)
         }
         when (breed.crown) {
-            Crown.TOPKNOT -> pom(coat.body, Offset(37f, 15f), 7.6f)
-            Crown.BOW -> bow(37f, 17f)
+            Crown.TOPKNOT -> pom(coat.body, Offset(35f, 7f), 9f)
+            Crown.BOW -> bow(35f, 10f)
             else -> Unit
         }
     }
