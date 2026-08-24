@@ -35,7 +35,11 @@
      그래서 색조까지 본다. 그림자는 바탕색에 밝기만 곱한 것이므로
      `픽셀 ~= 바탕색 x k` 가 성립한다. 회색빛 벽면은 이 식에서 크게 벗어난다.
 
-  3. **외톨이 털어내기** — 경계가 디더링(체크무늬)이라 배경만 지우면 반쪽이 점으로
+  3. **테두리 두르기** — 오려낸 자리가 계단(픽셀 아트라 45도가 계단이 된다)이라
+     그대로 두면 "오린 티"가 난다. 실루엣을 [OUTLINE_WIDTH] 만큼 부풀려 그 띠를
+     [OUTLINE_COLOR] 로 칠하면 계단이 띠 안에 먹혀서 의도한 테두리로 읽힌다.
+
+  4. **외톨이 털어내기** — 경계가 디더링(체크무늬)이라 배경만 지우면 반쪽이 점으로
      남아 희끗희끗해진다. 이웃 넷 중 셋 이상이 빈 픽셀은 그 찌꺼기다.
 
 ## 그림자는 남기지 않는다
@@ -54,7 +58,7 @@
 import sys
 from collections import deque
 
-from PIL import Image
+from PIL import Image, ImageFilter
 
 # 바탕색으로 볼 색 거리. 픽셀 아트라 배경이 거의 단색이지만 노이즈가 조금 있다.
 TOLERANCE = 26
@@ -67,6 +71,14 @@ SHADOW_MAX_PEEL = 10
 
 # "바탕색이 어두워진 것"으로 볼 색 오차. 넉넉하면 벽면까지 먹는다.
 SHADE_TOLERANCE = 16
+
+# 테두리 두께(px)와 색.
+#
+# 색은 원본 그림자 톤에서 가져왔다. 잉크 검정은 픽셀 아트 원본에 없던 선이라 세고,
+# 크림색은 티는 제일 잘 가리지만 방이 종이 스티커처럼 붕 뜬다. 이 톤이 원본에
+# 원래 있던 색이라 제일 자연스럽다.
+OUTLINE_WIDTH = 3
+OUTLINE_COLOR = (150, 122, 96, 255)
 
 # 그림자 최대 진하기. 1.0 이면 원본만큼 진해져서 배경이 밝을 때 튄다.
 SHADOW_ALPHA = 0.55
@@ -94,9 +106,28 @@ def cutout(src_path: str, dst_path: str) -> None:
                 cleared += 1
 
     speckles = despeckle(pixels, width, height)
+    image = add_outline(image)
 
     image.save(dst_path)
     print(f"바탕색 {base}  ->  투명 {cleared:,}px, 외톨이 {speckles:,}px")
+
+
+def add_outline(image: Image.Image) -> Image.Image:
+    """
+    실루엣 바깥에 테두리를 두른다.
+
+    오려낸 자리는 계단이다 — 픽셀 아트에서 45도 선은 계단으로 그려지고, 배경을
+    지우면 그 계단이 그대로 윤곽이 되어 "오린 티"가 난다.
+
+    알파를 [OUTLINE_WIDTH] 만큼 부풀려 띠를 만들고 그 위에 원본을 얹는다.
+    계단이 띠 안쪽에 묻혀서 의도한 테두리로 읽힌다.
+    """
+    if OUTLINE_WIDTH <= 0:
+        return image
+    grown = image.getchannel("A").filter(ImageFilter.MaxFilter(OUTLINE_WIDTH * 2 + 1))
+    ring = Image.new("RGBA", image.size, OUTLINE_COLOR)
+    ring.putalpha(grown)
+    return Image.alpha_composite(ring, image)
 
 
 def despeckle(pixels, width, height, rounds: int = 3) -> int:
