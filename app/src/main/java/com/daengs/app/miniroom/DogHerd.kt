@@ -24,7 +24,7 @@ import kotlin.random.Random
 class DogActor(
     val id: Int,
     /** 형태. 카탈로그 키(`breed.id`)이기도 하다. */
-    val breed: DogBreed,
+    var breed: DogBreed,
     /**
      * 덩치. **전부 1f — 마리 구분은 덩치가 아니라 견종으로 한다.**
      * 덩치를 흔들었더니 같은 견종인데 원근이 깨진 것처럼 보였다.
@@ -135,6 +135,17 @@ class DogHerd(count: Int, seed: Int = 7) {
 
     fun byId(id: Int): DogActor? = dogs.firstOrNull { it.id == id }
 
+    /**
+     * 견종을 통째로 바꾼다. 개발자 도구에서 16종을 훑어보려고 있는 것이다.
+     *
+     * @param breed null 이면 원래대로 [DogBreed.ALL] 을 차례로 돌린다
+     */
+    fun setBreedOverride(breed: DogBreed?) {
+        dogs.forEachIndexed { i, d ->
+            d.breed = breed ?: DogBreed.ALL[i % DogBreed.ALL.size]
+        }
+    }
+
     /** 격자 밖으로 못 나가게. */
     fun clampToFloor(p: Offset): Offset {
         val lo = 0.15f
@@ -149,13 +160,8 @@ class DogHerd(count: Int, seed: Int = 7) {
     // 통과하지 못한다** — 규칙을 여기서 새로 정의하지 않는다. 아이템 하나를 flat 으로
     // 바꾸면 배치 점유와 강아지 통행이 같이 따라온다.
 
-    /**
-     * 강아지가 차지하는 반경(격자 단위).
-     *
-     * 발끝 한 점만 검사하면 몸통이 책상에 반쯤 파묻힌 채로 멈춘다.
-     * 그렇다고 크게 잡으면 가구 사이를 못 지나간다 — 통로가 2*이 값 보다 넓어야 한다.
-     */
-    private val bodyRadius = 0.22f
+    /** 개발자 오버레이와 같은 값을 봐야 해서 [MiniRoomState] 에 두고 여기서 읽는다. */
+    private val bodyRadius = MiniRoomState.DOG_BODY_RADIUS
 
     private fun blockedAt(x: Float, y: Float, blocked: Set<IntOffset>): Boolean {
         if (blocked.isEmpty()) return false

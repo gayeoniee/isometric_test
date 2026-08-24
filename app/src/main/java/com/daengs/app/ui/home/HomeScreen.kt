@@ -37,6 +37,7 @@ import com.daengs.app.miniroom.RoomTheme
 import com.daengs.app.miniroom.rememberRoomStore
 import com.daengs.app.miniroom.art.ItemCatalog
 import com.daengs.app.miniroom.art.footprintFacing
+import com.daengs.app.miniroom.art.DogBreed
 import com.daengs.app.miniroom.art.rememberItemCatalog
 import com.daengs.app.miniroom.rememberMiniRoomState
 import com.daengs.app.ui.theme.CreamBg
@@ -169,6 +170,9 @@ private fun RoomSection(
     herd: com.daengs.app.miniroom.DogHerd,
     modifier: Modifier = Modifier,
 ) {
+    // 개발자 도구는 **저장하지 않는다.** 실수로 켠 채 배포되면 안 된다.
+    var developer by remember { mutableStateOf(false) }
+    var breedOverride by remember { mutableStateOf<DogBreed?>(null) }
     // @Preview 안에서는 무한 애니메이션이 돌지 않아 프레임 0 에 얼어붙는다.
     // 미리보기에서는 중간 프레임을 찍어 강아지 자세가 보이게 한다.
     val previewFrame = if (LocalInspectionMode.current) 400L else null
@@ -185,6 +189,7 @@ private fun RoomSection(
             editing = inventoryOpen,
             modifier = Modifier.fillMaxSize(),
             frameTimeMs = frameTimeMs ?: previewFrame,
+            developer = developer,
             // 톡 누르면 방향 돌리기. 치우기는 "방 밖으로 끌어내기"로 분리했다 —
             // 탭 하나에 두 가지 뜻을 담으면 헷갈리고, 실수로 사라지면 곤란하다.
             // 편집 모드에서 탭 = 선택. 돌리기/치우기는 버튼으로 뺐다.
@@ -206,6 +211,21 @@ private fun RoomSection(
             CameraButton(onClick = {})
             Spacer(Modifier.height(9.dp))
             InventoryButton(open = inventoryOpen, onClick = onToggleInventory)
+            Spacer(Modifier.height(9.dp))
+            DeveloperToggle(on = developer, onToggle = { developer = !developer })
+        }
+
+        if (developer) {
+            DeveloperPanel(
+                state = state,
+                herd = herd,
+                breedOverride = breedOverride,
+                onPickBreed = {
+                    breedOverride = it
+                    herd.setBreedOverride(it)
+                },
+                modifier = Modifier.align(Alignment.BottomStart).padding(start = 10.dp, bottom = 6.dp),
+            )
         }
 
         // 아래 한가운데에 두면 방의 앞쪽 바닥을 가려서, 방을 아래로 당길 수가 없었다.

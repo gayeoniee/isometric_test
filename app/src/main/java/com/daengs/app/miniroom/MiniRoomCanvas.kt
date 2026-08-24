@@ -15,6 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.res.imageResource
+import androidx.compose.ui.text.rememberTextMeasurer
 import com.daengs.app.R
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawBehind
@@ -25,6 +26,7 @@ import com.daengs.app.miniroom.art.ItemCatalog
 import com.daengs.app.miniroom.art.footprintFacing
 import com.daengs.app.miniroom.art.drawDoorHint
 import com.daengs.app.miniroom.art.drawDoorOpening
+import com.daengs.app.miniroom.art.drawDeveloperOverlay
 import com.daengs.app.miniroom.art.drawRoomBackground
 import com.daengs.app.miniroom.sprite.rememberFrameClock
 import kotlinx.coroutines.Job
@@ -63,6 +65,8 @@ fun MiniRoomCanvas(
     /** 편집 모드에서 빈 곳을 눌렀을 때. 선택 해제용. */
     onEmptyTap: (() -> Unit)? = null,
     doorOpenOverride: Float? = null,
+    /** 개발자 오버레이. 격자·발자국·강아지 반경을 그림 위에 덧그린다. */
+    developer: Boolean = false,
 ) {
     val clock = rememberFrameClock()
 
@@ -70,6 +74,7 @@ fun MiniRoomCanvas(
     // 문만 예외로 이 그림에서 오려내 다시 그린다 ([drawDoorOpening]).
     // 테마가 바뀌면 그림 전체가 바뀐다 — 색을 덧칠하는 게 아니라 다른 그림이다.
     val roomImage = ImageBitmap.imageResource(theme.room)
+    val measurer = rememberTextMeasurer()
 
     // 0 = 닫힘, 1 = 활짝
     val doorOpen = remember { Animatable(0f) }
@@ -285,6 +290,11 @@ fun MiniRoomCanvas(
                     paint(item)
                 }
                 flushDogsUpTo(Int.MAX_VALUE)
+
+                // 오버레이는 **맨 마지막**. 가구 밑에 깔리면 자를 못 댄다
+                if (developer) {
+                    drawDeveloperOverlay(g, state, catalog, herd?.dogs.orEmpty(), measurer)
+                }
 
             }
     )

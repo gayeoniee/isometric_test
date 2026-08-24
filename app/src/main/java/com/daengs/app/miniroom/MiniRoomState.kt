@@ -49,6 +49,7 @@ fun List<PlacedItem>.pickTopmost(
 }
 
 @Stable
+
 class MiniRoomState internal constructor(initial: List<PlacedItem>) {
 
     val items: SnapshotStateList<PlacedItem> = initial.toMutableStateList()
@@ -307,6 +308,17 @@ class MiniRoomState internal constructor(initial: List<PlacedItem>) {
     }
 
     companion object {
+        /**
+         * 강아지가 차지하는 반경(격자 단위).
+         *
+         * [DogHerd] 의 통행 판정과 개발자 오버레이가 **같은 값**을 봐야 한다 —
+         * 눈으로 보는 원과 실제로 막히는 크기가 다르면 오버레이가 거짓말을 한다.
+         *
+         * 발끝 한 점만 검사하면 몸통이 가구에 반쯤 파묻힌 채 멈춘다. 그렇다고 크게
+         * 잡으면 가구 사이를 못 지나간다 — 통로가 2*이 값 보다 넓어야 한다.
+         */
+        const val DOG_BODY_RADIUS = 0.22f
+
         const val LAYER_FLOOR = 0
         const val LAYER_ITEM = 1
         const val LAYER_TOP = 2
