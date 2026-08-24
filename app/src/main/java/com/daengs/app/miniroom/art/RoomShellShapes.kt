@@ -1,396 +1,146 @@
 package com.daengs.app.miniroom.art
 
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.FilterQuality
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.drawscope.DrawScope
-import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.drawscope.clipPath
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
 import com.daengs.app.miniroom.RoomGeometry
 import com.daengs.app.miniroom.RoomSpec
-import com.daengs.app.miniroom.RoomTheme
-import com.daengs.app.ui.theme.RoomPalette
-import kotlin.math.PI
-import kotlin.math.cos
-import kotlin.math.sin
+import kotlin.math.roundToInt
 
 // ---------------------------------------------------------------------------
-// 벽 평면 좌표계
-//   u = 벽을 따라간 거리 (격자 단위 0..6, 0 이 안쪽 모서리)
-//   h = 바닥에서 올라간 높이 (px, 0..wallPx)
-// 벽에 붙는 것(창문·문)은 전부 (u,h) 로 그리고 이 함수로 화면에 매핑한다.
+// 방 껍데기 — **그림 한 장**
+//
+// 예전에는 벽·바닥·창문·문·울타리를 전부 코드로 그렸다(500줄). 이제 그 전부가
+// modular_empty_room_v1.png 안에 구워져 있어서 그림을 한 번 그리면 끝난다.
+//
+// 딱 하나 남은 예외가 **문**이다. 문은 눌러서 여는 물건이라 그림에 구워두면
+// 열리지 않는다. 그렇다고 문만 벡터로 새로 그리면 픽셀 아트 방에 매끈한 도형이
+// 얹혀 화풍이 깨진다.
+//
+// 그래서 **그림에서 문만 오려내 다시 그린다.** 같은 PNG 의 문 영역을 소스로 삼아
+// 경첩 쪽으로 눌러 그리면, 새 아트 없이 원래 화풍 그대로 열리는 문이 된다.
 // ---------------------------------------------------------------------------
 
-fun RoomGeometry.leftWallPoint(u: Float, h: Float) =
-    Offset(origin.x - u * tw / 2f, origin.y + u * th / 2f - h)
-
-fun RoomGeometry.rightWallPoint(u: Float, h: Float) =
-    Offset(origin.x + u * tw / 2f, origin.y + u * th / 2f - h)
-
-/** 앞쪽 오른쪽 모서리(col = 6 선) 위의 점. 울타리가 여기 선다. */
-fun RoomGeometry.frontRailPoint(v: Float, h: Float) =
-    Offset(origin.x + (6f - v) * tw / 2f, origin.y + (6f + v) * th / 2f - h)
-
-private fun poly(points: List<Offset>): Path = Path().apply {
-    if (points.isEmpty()) return@apply
-    moveTo(points[0].x, points[0].y)
-    for (i in 1 until points.size) lineTo(points[i].x, points[i].y)
-    close()
-}
-
-/**
- * 아치형 개구부의 (u,h) 윤곽선. 아래는 직선, 위는 반타원.
- * 벽 평면에서 만든 뒤 매핑하므로 아이소메트릭으로 자연스럽게 기울어진다.
- */
-private fun archOutline(
-    u0: Float,
-    u1: Float,
-    h0: Float,
-    h1: Float,
-    archH: Float,
-    steps: Int = 14,
-): List<Pair<Float, Float>> {
-    val mid = (u0 + u1) / 2f
-    val ru = (u1 - u0) / 2f
-    val shoulder = h1 - archH
-    val pts = mutableListOf(u0 to h0, u1 to h0, u1 to shoulder)
-    for (i in 0..steps) {
-        val t = PI * i / steps
-        pts += (mid + ru * cos(t).toFloat()) to (shoulder + archH * sin(t).toFloat())
-    }
-    pts += u0 to shoulder
-    return pts
-}
-
-// ---------------------------------------------------------------------------
-
-fun DrawScope.drawRoomShell(
-    g: RoomGeometry,
-    t: RoomTheme,
-    doorOpen: Float = 0f,
-    doorPulse: Float = 0f,
-) {
-    drawWalls(g, t)
-    drawWindow(g, t)
-    drawDoor(g, t, doorOpen, doorPulse)
-    drawFloor(g, t)
-    // 바닥 위에 얹혀야 하므로 바닥 다음
-    drawDoorLight(g, doorOpen)
-}
-
-private fun DrawScope.drawWalls(g: RoomGeometry, t: RoomTheme) {
-    val corner = g.origin
-    val n = RoomSpec.GRID.toFloat()
-    val leftBase = g.leftWallPoint(n, 0f)
-    val rightBase = g.rightWallPoint(n, 0f)
-    val w = g.wallPx
-
-    // 왼쪽 벽 (문 + 창문이 붙는 면)
-    drawPath(
-        poly(
-            listOf(
-                Offset(corner.x, corner.y - w),
-                Offset(leftBase.x, leftBase.y - w),
-                leftBase,
-                corner,
-            )
-        ),
-        t.wallLeft,
-    )
-    // 오른쪽 벽 — 시안대로 민무늬. 살짝 어둡게 해야 두 면이 갈라져 보인다.
-    drawPath(
-        poly(
-            listOf(
-                Offset(corner.x, corner.y - w),
-                Offset(rightBase.x, rightBase.y - w),
-                rightBase,
-                corner,
-            )
-        ),
-        t.wallRight,
-    )
-
-    // 안쪽 모서리 이음새 — 이게 없으면 두 벽이 한 면으로 보인다
-    drawLine(
-        t.wallShadow,
-        Offset(corner.x, corner.y - w),
-        corner,
-        strokeWidth = 1.5f * g.scale,
-    )
-
-    // 벽 위 몰딩 (시안의 흰 테두리)
-    val trim = 5f * g.scale
-    drawPath(
-        poly(
-            listOf(
-                Offset(corner.x, corner.y - w),
-                Offset(leftBase.x, leftBase.y - w),
-                Offset(leftBase.x, leftBase.y - w + trim),
-                Offset(corner.x, corner.y - w + trim),
-            )
-        ),
-        t.wallTrim,
-    )
-    drawPath(
-        poly(
-            listOf(
-                Offset(corner.x, corner.y - w),
-                Offset(rightBase.x, rightBase.y - w),
-                Offset(rightBase.x, rightBase.y - w + trim),
-                Offset(corner.x, corner.y - w + trim),
-            )
-        ),
-        t.wallTrim,
-    )
-
-    // 걸레받이
-    val base = 4f * g.scale
-    drawPath(
-        poly(
-            listOf(
-                corner,
-                leftBase,
-                Offset(leftBase.x, leftBase.y - base),
-                Offset(corner.x, corner.y - base),
-            )
-        ),
-        t.wallTrim,
-    )
-    drawPath(
-        poly(
-            listOf(
-                corner,
-                rightBase,
-                Offset(rightBase.x, rightBase.y - base),
-                Offset(corner.x, corner.y - base),
-            )
-        ),
-        t.wallTrim,
-    )
-}
-
-private fun DrawScope.drawWindow(g: RoomGeometry, t: RoomTheme) {
-    val u0 = 0.7f
-    val u1 = 2.5f
-    // 벽 높이의 30% ~ 72% — 가운데쯤에 오게. 예전엔 0.95 라 천장에 붙어 있었다.
-    val h0 = g.wallPx * 0.30f
-    val h1 = g.wallPx * 0.72f
-    val archH = g.wallPx * 0.20f
-    val frame = 0.18f
-
-    val outer = poly(
-        archOutline(u0 - frame, u1 + frame, h0 - 4f * g.scale, h1 + 4f * g.scale, archH)
-            .map { g.leftWallPoint(it.first, it.second) }
-    )
-    val inner = poly(
-        archOutline(u0, u1, h0, h1, archH).map { g.leftWallPoint(it.first, it.second) }
-    )
-
-    drawPath(outer, t.wallTrim)
-
-    // 창밖 — 하늘 그라데이션 + 구름 + 벚나무
-    clipPath(inner) {
-        val topP = g.leftWallPoint(u1, h1)
-        val botP = g.leftWallPoint(u0, h0)
-        drawRect(
-            brush = Brush.verticalGradient(
-                listOf(RoomPalette.SkyTop, RoomPalette.SkyBottom),
-                startY = topP.y - archH,
-                endY = botP.y,
-            ),
-            topLeft = Offset(topP.x - g.tw * 2f, topP.y - archH * 2f),
-            size = Size(botP.x - topP.x + g.tw * 4f, botP.y - topP.y + archH * 4f),
-        )
-
-        val c1 = g.leftWallPoint(2.05f, h1 - archH * 0.45f)
-        drawOval(
-            RoomPalette.Cloud,
-            Offset(c1.x - 11f * g.scale, c1.y - 5f * g.scale),
-            Size(24f * g.scale, 10f * g.scale),
-        )
-        val c2 = g.leftWallPoint(2.35f, h1 - archH * 0.78f)
-        drawOval(
-            RoomPalette.Cloud,
-            Offset(c2.x - 7f * g.scale, c2.y - 4f * g.scale),
-            Size(16f * g.scale, 8f * g.scale),
-        )
-
-        // 벚나무 — 가지 + 꽃뭉치
-        val trunk = g.leftWallPoint(u0 + 0.12f, h0)
-        val branch = g.leftWallPoint(u0 + 0.8f, h0 + archH * 0.8f)
-        drawLine(RoomPalette.Branch, trunk, branch, strokeWidth = 2.4f * g.scale)
-        val blossoms = listOf(
-            Triple(0.5f, 0.5f, 9f),
-            Triple(0.95f, 0.82f, 11f),
-            Triple(1.4f, 0.52f, 8f),
-            Triple(0.72f, 1.1f, 7f),
-            Triple(1.18f, 0.3f, 6f),
-        )
-        blossoms.forEach { (du, dh, r) ->
-            val p = g.leftWallPoint(u0 + du, h0 + archH * dh)
-            drawCircle(RoomPalette.Blossom, r * g.scale, p)
-            drawCircle(
-                RoomPalette.BlossomDeep,
-                r * 0.42f * g.scale,
-                p + Offset(r * 0.24f * g.scale, r * 0.2f * g.scale),
-            )
-        }
-    }
-
-    // 창틀 격자 (십자)
-    drawLine(
-        t.wallTrim,
-        g.leftWallPoint((u0 + u1) / 2f, h1),
-        g.leftWallPoint((u0 + u1) / 2f, h0),
-        strokeWidth = 2.8f * g.scale,
-    )
-    drawLine(
-        t.wallTrim,
-        g.leftWallPoint(u0, h0 + (h1 - h0) * 0.42f),
-        g.leftWallPoint(u1, h0 + (h1 - h0) * 0.42f),
-        strokeWidth = 2.8f * g.scale,
-    )
-    drawPath(inner, t.wallTrim, style = Stroke(width = 3.2f * g.scale))
-
-    // 창턱
-    val sL = g.leftWallPoint(u0 - frame * 1.7f, h0 - 4f * g.scale)
-    val sR = g.leftWallPoint(u1 + frame * 1.7f, h0 - 4f * g.scale)
-    drawPath(
-        poly(
-            listOf(
-                sL,
-                sR,
-                sR + Offset(0f, 4.5f * g.scale),
-                sL + Offset(0f, 4.5f * g.scale),
-            )
-        ),
-        t.wallTrim,
+/** 방 그림을 [RoomGeometry.stage] 에 채운다. 픽셀 아트라 보간을 끈다. */
+fun DrawScope.drawRoomBackground(g: RoomGeometry, room: ImageBitmap) {
+    drawImage(
+        image = room,
+        srcOffset = IntOffset.Zero,
+        srcSize = IntSize(room.width, room.height),
+        dstOffset = IntOffset(g.stage.left.roundToInt(), g.stage.top.roundToInt()),
+        dstSize = IntSize(g.stage.width.roundToInt(), g.stage.height.roundToInt()),
+        // 픽셀 아트를 확대할 때 기본값(Medium)이면 뿌옇게 번진다
+        filterQuality = FilterQuality.None,
     )
 }
 
 /**
- * 문 규격. **그리기와 터치 판정이 이 값을 같이 읽는다.**
+ * 문 규격 — **방 그림에 자로 재서 뽑은 값**이다.
  *
- * 한쪽에만 숫자를 박아두면 나중에 문 크기를 바꿨을 때 그림과 누르는 자리가
- * 조용히 어긋난다. 화면만 봐서는 원인이 안 보이는 종류의 버그라 한 곳에 모은다.
+ * 예전엔 벽 평면 좌표계(u, h)로 문을 정의했다. 벽을 코드로 그리던 시절엔 그게 맞았지만
+ * 이제 벽이 그림이라, 그림 안에서 문이 실제로 있는 자리를 백분율로 잡는 게 맞다.
+ *
+ * 값은 1122x1402 원본에서 올리브색 문짝의 경계를 찾아 재고 백분율로 환산했다.
  */
 object DoorSpec {
-    /** 벽을 따라간 구간. U0 쪽이 안쪽 모서리에 가깝고, 손잡이는 U1 쪽에 있다. */
-    const val U0 = 3.5f
-    const val U1 = 5.0f
+    /** 문짝(초록 부분). 여닫는 대상이자 터치 판정 영역이다. */
+    val leaf = Rect(left = 5.97f, top = 38.4f, right = 18.81f, bottom = 65.9f)
 
-    /** 벽 높이 대비 문 높이 / 아치 높이 */
-    const val H_FRAC = 0.66f
-    const val ARCH_FRAC = 0.22f
+    /** 문틀까지 포함한 범위. 터치를 조금 너그럽게 받으려고 쓴다. */
+    val frame = Rect(left = 4.3f, top = 36.4f, right = 20.1f, bottom = 67.7f)
 
-    /** 경첩은 U0 쪽. 손잡이 반대편이라 문짝은 U0 쪽으로 접힌다. */
-    fun heightPx(g: RoomGeometry) = g.wallPx * H_FRAC
-    fun archPx(g: RoomGeometry) = g.wallPx * ARCH_FRAC
+    /**
+     * 경첩이 어느 쪽인가. 그림에서 손잡이가 **왼쪽**에 있으므로 경첩은 오른쪽이다.
+     * 열릴 때 문짝이 이쪽으로 눌린다.
+     */
+    const val HINGE_RIGHT = true
 
-    /** 이 화면 좌표가 문 위인가. 아치 윗부분은 좁아지지만 손가락 대상이라 넉넉하게 사각으로 본다. */
-    fun contains(g: RoomGeometry, pos: Offset): Boolean {
-        val (u, h) = g.toLeftWall(pos)
-        return u in U0..U1 && h in 0f..heightPx(g)
-    }
+    /** 활짝 열렸을 때 문짝이 남기는 폭의 비율. 0 이면 완전히 사라져 어색하다. */
+    const val OPEN_MIN_W = 0.16f
+
+    /** 백분율 → 화면 px */
+    fun rectOf(g: RoomGeometry, r: Rect) = Rect(
+        g.stage.left + r.left / 100f * g.stage.width,
+        g.stage.top + r.top / 100f * g.stage.height,
+        g.stage.left + r.right / 100f * g.stage.width,
+        g.stage.top + r.bottom / 100f * g.stage.height,
+    )
+
+    /** 문을 눌렀는가. 문틀까지 받아준다 — 손가락은 정확하지 않다. */
+    fun contains(g: RoomGeometry, pos: Offset): Boolean = rectOf(g, frame).contains(pos)
+
+    /** 원본 PNG 안에서 문짝이 차지하는 픽셀 영역. 오려 그릴 때 소스가 된다. */
+    fun leafSourcePx(room: ImageBitmap): Rect = Rect(
+        leaf.left / 100f * room.width,
+        leaf.top / 100f * room.height,
+        leaf.right / 100f * room.width,
+        leaf.bottom / 100f * room.height,
+    )
 }
 
 /**
- * @param open 0 = 닫힘, 1 = 활짝. 문짝 폭을 경첩(U0) 쪽으로 줄여서 안쪽으로
- *   열리는 걸 표현한다. 2D 에서 여닫이문을 그리는 표준 방법이다.
- * @param pulse 0..1. 누를 수 있다는 걸 알리는 은은한 맥동.
- */
-private fun DrawScope.drawDoor(g: RoomGeometry, t: RoomTheme, open: Float, pulse: Float) {
-    val u0 = DoorSpec.U0
-    val u1 = DoorSpec.U1
-    val h1 = DoorSpec.heightPx(g)
-    val archH = DoorSpec.archPx(g)
-    val frame = 0.2f
-
-    val outer = poly(
-        archOutline(u0 - frame, u1 + frame, 0f, h1 + 5f * g.scale, archH)
-            .map { g.leftWallPoint(it.first, it.second) }
-    )
-    val inner = poly(
-        archOutline(u0, u1, 0f, h1, archH).map { g.leftWallPoint(it.first, it.second) }
-    )
-
-    drawPath(outer, t.doorTrim)
-
-    // 문 뒤 — 바깥 햇살. 산책 나가는 느낌을 주는 부분이다.
-    val skyTop = g.leftWallPoint(u1, h1)
-    val skyBot = g.leftWallPoint(u0, 0f)
-    clipPath(inner) {
-        drawRect(
-            brush = Brush.verticalGradient(
-                listOf(Color(0xFFFFFBEF), Color(0xFFFAE7B8)),
-                startY = skyTop.y - archH,
-                endY = skyBot.y,
-            ),
-            topLeft = Offset(skyTop.x - g.tw, skyTop.y - archH * 2f),
-            size = Size(skyBot.x - skyTop.x + g.tw * 2f, skyBot.y - skyTop.y + archH * 3f),
-        )
-    }
-
-    // 문짝 — 경첩(u0) 쪽으로 폭이 줄어든다
-    val panelU1 = u0 + (u1 - u0) * (1f - open)
-    if (open < 0.985f) {
-        drawPath(
-            poly(archOutline(u0, panelU1, 0f, h1, archH).map { g.leftWallPoint(it.first, it.second) }),
-            t.doorFill,
-        )
-        // 열린 쪽 모서리에 그늘 — 문짝이 안으로 꺾인 느낌
-        if (open > 0.02f) {
-            drawLine(
-                t.doorKnob.copy(alpha = 0.55f),
-                g.leftWallPoint(panelU1, 0f),
-                g.leftWallPoint(panelU1, h1 - archH),
-                strokeWidth = 2.5f * g.scale,
-            )
-        }
-
-        // 문짝 위 장식은 문짝과 같이 좁아진다. 폭이 0 에 가까우면 찌그러지므로 같이 사라진다.
-        val fade = (1f - open * 1.35f).coerceIn(0f, 1f)
-        if (fade > 0.01f) {
-            val mid = u0 + (panelU1 - u0) * 0.5f
-            drawPawStamp(
-                g.leftWallPoint(mid, h1 * 0.60f),
-                8f * g.scale * (1f - open * 0.5f),
-                // 맥동은 문이 열리기 시작하면 꺼진다. 안 그러면 산만하다.
-                t.doorTrim.copy(alpha = fade * (0.72f + 0.28f * pulse)),
-            )
-            drawCircle(
-                t.doorKnob.copy(alpha = fade),
-                3.4f * g.scale,
-                g.leftWallPoint(u0 + (panelU1 - u0) * 0.84f, h1 * 0.32f),
-            )
-        }
-    }
-}
-
-/**
- * 문에서 바닥으로 번지는 빛.
+ * 문이 열리는 그림. [open] 0 이면 닫힘, 1 이면 활짝.
  *
- * **바닥을 그린 뒤에** 호출해야 한다. 문은 벽 단계에서 그려지므로
- * 문 안에서 그리면 바닥에 덮인다.
+ * 방 그림을 이미 깔아둔 **뒤에** 부른다. 순서는 이렇다.
+ *
+ *  1. 문짝 자리를 어두운 색으로 덮는다 — 열린 틈으로 보이는 문간이다
+ *  2. 같은 PNG 의 문짝 영역을 경첩 쪽으로 눌러서 다시 그린다
+ *
+ * 새 아트가 없어도 원래 화풍 그대로 열린다. 나중에 저쪽에서 "문 열린 방" PNG 를
+ * 받으면 이 함수를 그 그림으로 갈아끼우면 된다.
  */
-private fun DrawScope.drawDoorLight(g: RoomGeometry, open: Float) {
-    if (open <= 0.01f) return
-    val u0 = DoorSpec.U0
-    val u1 = DoorSpec.U1
-    // 문턱에서 방 안쪽(col 이 커지는 방향)으로 퍼지는 사다리꼴
-    val reach = 1.9f * open
-    val p = listOf(
-        g.toScreenF(0f, u0),
-        g.toScreenF(0f, u1),
-        g.toScreenF(reach, u1 + 0.5f),
-        g.toScreenF(reach, u0 - 0.5f),
+fun DrawScope.drawDoorOpening(g: RoomGeometry, room: ImageBitmap, open: Float) {
+    if (open <= 0.001f) return
+
+    val dst = DoorSpec.rectOf(g, DoorSpec.leaf)
+    val src = DoorSpec.leafSourcePx(room)
+
+    // 1) 문간. 안쪽이 비쳐야 문이 "열렸다"로 읽힌다
+    drawRect(DoorwayDark, Offset(dst.left, dst.top), Size(dst.width, dst.height))
+
+    // 2) 눌린 문짝. 경첩 쪽 가장자리는 제자리에 남는다
+    val w = dst.width * (1f - open * (1f - DoorSpec.OPEN_MIN_W))
+    val left = if (DoorSpec.HINGE_RIGHT) dst.right - w else dst.left
+    drawImage(
+        image = room,
+        srcOffset = IntOffset(src.left.roundToInt(), src.top.roundToInt()),
+        srcSize = IntSize(src.width.roundToInt(), src.height.roundToInt()),
+        dstOffset = IntOffset(left.roundToInt(), dst.top.roundToInt()),
+        dstSize = IntSize(w.roundToInt().coerceAtLeast(1), dst.height.roundToInt()),
+        filterQuality = FilterQuality.None,
     )
-    drawPath(poly(p), Color(0xFFFFF3D0).copy(alpha = 0.42f * open))
 }
 
-/** 발바닥 도장 — 문·울타리·아이콘에서 재사용. */
+/**
+ * 닫힌 문을 누를 수 있다는 은은한 표시. [pulse] 0..1.
+ *
+ * 문짝 위에 옅은 흰빛을 얹는다. 문이 열리기 시작하면 호출부에서 pulse 를 0 으로
+ * 줄이므로 여기서 따로 끄지 않는다.
+ */
+fun DrawScope.drawDoorHint(g: RoomGeometry, pulse: Float) {
+    if (pulse <= 0.001f) return
+    val r = DoorSpec.rectOf(g, DoorSpec.leaf)
+    drawRect(
+        Color.White.copy(alpha = 0.10f * pulse),
+        Offset(r.left, r.top),
+        Size(r.width, r.height),
+    )
+}
+
+/** 열린 문 너머. 방 그림의 문틀 그늘과 비슷한 톤이라 튀지 않는다. */
+private val DoorwayDark = Color(0xFF4A3B2A)
+
+/**
+ * 발자국 도장. 방과 무관하게 아이콘·소품에서도 쓴다.
+ *
+ * [RoomSpec] 을 안 타므로 방 기하가 바뀌어도 영향이 없다.
+ */
 fun DrawScope.drawPawStamp(center: Offset, r: Float, color: Color) {
     drawOval(
         color,
@@ -405,100 +155,4 @@ fun DrawScope.drawPawStamp(center: Offset, r: Float, color: Color) {
             Size(r * 0.37f, r * 0.45f),
         )
     }
-}
-
-private fun DrawScope.drawFloor(g: RoomGeometry, t: RoomTheme) {
-    val n = RoomSpec.GRID.toFloat()
-    val top = g.toScreenF(0f, 0f)
-    val right = g.toScreenF(n, 0f)
-    val bottom = g.toScreenF(n, n)
-    val left = g.toScreenF(0f, n)
-    val floor = poly(listOf(top, right, bottom, left))
-
-    drawPath(floor, t.floorLight)
-
-    clipPath(floor) {
-        // 나뭇결 — row 가 일정한 선을 따라 널을 깐다
-        for (r in 0..RoomSpec.GRID) {
-            drawLine(
-                t.floorPlank.copy(alpha = 0.34f),
-                g.toScreenF(0f, r.toFloat()),
-                g.toScreenF(n, r.toFloat()),
-                strokeWidth = 1.2f * g.scale,
-            )
-        }
-        // 앞쪽으로 갈수록 살짝 어둡게 — 평평해 보이지 않게
-        drawPath(
-            floor,
-            Brush.verticalGradient(
-                listOf(
-                    t.floorDark.copy(alpha = 0f),
-                    t.floorDark.copy(alpha = 0.45f),
-                ),
-                startY = top.y,
-                endY = bottom.y,
-            ),
-        )
-        // 격자를 아주 옅게 — 배치 데모라 한 칸이 어디까진지 보이는 편이 낫다
-        for (c in 0..RoomSpec.GRID) {
-            drawLine(
-                t.floorPlank.copy(alpha = 0.15f),
-                g.toScreenF(c.toFloat(), 0f),
-                g.toScreenF(c.toFloat(), n),
-                strokeWidth = 1f * g.scale,
-            )
-        }
-    }
-
-    // 바닥 앞쪽 테두리 (시안의 흰 띠)
-    val lip = 7f * g.scale
-    drawPath(
-        poly(
-            listOf(
-                left,
-                bottom,
-                right,
-                right + Offset(0f, lip),
-                bottom + Offset(0f, lip),
-                left + Offset(0f, lip),
-            )
-        ),
-        t.floorEdge,
-    )
-    drawPath(floor, t.floorEdge.copy(alpha = 0.9f), style = Stroke(width = 2f * g.scale))
-}
-
-/**
- * 울타리. 바닥 앞쪽 모서리에 서므로 아이템보다 **뒤에** 그리면 안 된다 —
- * 방 껍데기가 아니라 아이템을 다 그린 뒤에 호출한다.
- */
-fun DrawScope.drawFence(g: RoomGeometry, t: RoomTheme) {
-    val postH = 26f * g.scale
-    val from = 2.2f
-    val to = 5.4f
-    val posts = 4
-
-    listOf(0.45f, 0.78f).forEach { frac ->
-        drawLine(
-            t.fenceFill,
-            g.frontRailPoint(from, postH * frac),
-            g.frontRailPoint(to, postH * frac),
-            strokeWidth = 4.5f * g.scale,
-        )
-    }
-    for (i in 0 until posts) {
-        val v = from + (to - from) * i / (posts - 1f)
-        drawLine(
-            t.fenceFill,
-            g.frontRailPoint(v, 0f),
-            g.frontRailPoint(v, postH),
-            strokeWidth = 6.5f * g.scale,
-        )
-        drawCircle(t.fenceTrim, 3.4f * g.scale, g.frontRailPoint(v, postH))
-    }
-    drawPawStamp(
-        g.frontRailPoint((from + to) / 2f, postH * 0.6f),
-        4.4f * g.scale,
-        t.fenceTrim,
-    )
 }

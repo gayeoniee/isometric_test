@@ -13,14 +13,18 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.res.imageResource
+import com.daengs.app.R
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.input.pointer.pointerInput
 import com.daengs.app.miniroom.art.DoorSpec
 import com.daengs.app.miniroom.art.ItemCatalog
 import com.daengs.app.miniroom.art.footprintFacing
-import com.daengs.app.miniroom.art.drawFence
-import com.daengs.app.miniroom.art.drawRoomShell
+import com.daengs.app.miniroom.art.drawDoorHint
+import com.daengs.app.miniroom.art.drawDoorOpening
+import com.daengs.app.miniroom.art.drawRoomBackground
 import com.daengs.app.miniroom.sprite.rememberFrameClock
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -60,6 +64,10 @@ fun MiniRoomCanvas(
     doorOpenOverride: Float? = null,
 ) {
     val clock = rememberFrameClock()
+
+    // 방 그림. 벽·바닥·창문·울타리가 전부 여기 구워져 있다.
+    // 문만 예외로 이 그림에서 오려내 다시 그린다 ([drawDoorOpening]).
+    val roomImage = ImageBitmap.imageResource(R.drawable.modular_empty_room_v1)
 
     // 0 = 닫힘, 1 = 활짝
     val doorOpen = remember { Animatable(0f) }
@@ -224,7 +232,9 @@ fun MiniRoomCanvas(
                 // 누를 수 있다는 은은한 표시. 열리기 시작하면 꺼진다.
                 val pulse = ((sin(t / 900f) + 1f) / 2f) * (1f - open)
 
-                drawRoomShell(g, theme, open, pulse)
+                drawRoomBackground(g, roomImage)
+                drawDoorOpening(g, roomImage, open)
+                drawDoorHint(g, pulse)
 
                 if (d != null) {
                     val dragged = state.items.firstOrNull { it.instanceId == d.instanceId }
@@ -274,8 +284,6 @@ fun MiniRoomCanvas(
                 }
                 flushDogsUpTo(Int.MAX_VALUE)
 
-                // 울타리는 바닥 앞쪽 모서리에 서므로 아이템보다 뒤에 그리면 안 된다.
-                drawFence(g, theme)
             }
     )
 }

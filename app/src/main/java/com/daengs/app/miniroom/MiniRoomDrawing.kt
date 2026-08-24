@@ -82,7 +82,7 @@ fun DrawScope.drawItem(
 /** 들어올린 아이템 아래 바닥에 지는 그림자. */
 fun DrawScope.drawLiftShadow(g: RoomGeometry, col: Int, row: Int, footprint: IntSize) {
     val c = g.footprintCenter(col, row, footprint)
-    val w = g.tw * 0.62f
+    val w = g.cell * 0.62f
     val h = w / RoomSpec.TILE_RATIO
     drawOval(
         RoomPalette.Shadow.copy(alpha = 0.28f),

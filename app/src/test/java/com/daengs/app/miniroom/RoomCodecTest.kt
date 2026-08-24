@@ -35,28 +35,28 @@ class RoomCodecTest {
     @Test
     fun `버전이 다르면 통째로 버린다`() {
         val v1 = RoomCodec.encode(sample)
-        assertNull("옛 형식을 새 코드로 잘못 해석하면 안 된다", RoomCodec.decode(v1.replace("v2", "v1")))
+        assertNull("옛 형식을 새 코드로 잘못 해석하면 안 된다", RoomCodec.decode(v1.replace("v3", "v2")))
         assertNull(RoomCodec.decode("1,rug,2,2,0"))
     }
 
     @Test
     fun `망가진 줄이 하나라도 있으면 전부 버린다`() {
-        assertNull("필드 수가 모자람", RoomCodec.decode("v2;1,rug,2,2"))
-        assertNull("숫자가 아님", RoomCodec.decode("v2;x,rug,2,2,0"))
-        assertNull("itemId 가 빔", RoomCodec.decode("v2;1,,2,2,0"))
+        assertNull("필드 수가 모자람", RoomCodec.decode("v3;1,rug,2,2"))
+        assertNull("숫자가 아님", RoomCodec.decode("v3;x,rug,2,2,0"))
+        assertNull("itemId 가 빔", RoomCodec.decode("v3;1,,2,2,0"))
     }
 
     @Test
     fun `격자 밖 좌표는 버린다`() {
-        // 격자 크기를 줄이는 변경이 있었을 때 옛 데이터가 밖에 남는 경우
-        assertNull(RoomCodec.decode("v2;1,rug,9,2,0"))
-        assertNull(RoomCodec.decode("v2;1,rug,2,-1,0"))
+        // 격자 크기를 줄이는 변경이 있었을 때 옛 데이터가 밖에 남는 경우 (GRID=12)
+        assertNull(RoomCodec.decode("v3;1,rug,12,2,0"))
+        assertNull(RoomCodec.decode("v3;1,rug,2,-1,0"))
     }
 
     @Test
     fun `방향 값이 범위를 넘으면 잘라 넣는다`() {
         // 방향 수가 줄어든 경우. 이건 좌표와 달리 방을 못 쓰게 만들지 않으므로 살린다.
-        val r = RoomCodec.decode("v2;1,rug,2,2,7")!!
+        val r = RoomCodec.decode("v3;1,rug,2,2,7")!!
         assertEquals(PlacedItem.FACINGS - 1, r.single().facing)
     }
 

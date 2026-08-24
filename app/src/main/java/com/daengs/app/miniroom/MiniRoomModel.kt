@@ -72,36 +72,40 @@ object RoomDefaults {
      * 별도 카운터를 들고 있으면 방 상태와 어긋날 여지가 생긴다.
      */
     val OWNED: Map<String, Int> = mapOf(
-        "rug" to 1,
-        "bed" to 1,
-        "humanbed" to 1,
-        "desk" to 1,
-        "house" to 1,
-        "bowl" to 1,
-        "waterbowl" to 1,
-        "plant" to 2,
-        "lantern" to 2,
+        "rug-cream" to 1,
+        "rug-sage" to 1,
+        "doghouse-sage" to 1,
+        "cabinet-sage" to 1,
+        "toy-basket" to 1,
+        "feeding-bowls" to 1,
+        "plant-tall" to 2,
+        "ball-sage" to 2,
     )
 
     /** 인벤토리에 보여줄 순서. 강아지는 아이템이 아니므로 빠진다. */
     val INVENTORY_ORDER: List<String> = OWNED.keys.toList()
 
-    /** 시안 배치를 대충 흉내 낸 초기 상태. 전부 하드코딩 — 백엔드 없음. */
-    /** 가구만. 강아지는 격자를 안 쓰므로 [DogHerd] 가 따로 관리한다. */
+    /**
+     * 처음 방에 놓여 있는 소품.
+     *
+     * 좌표는 저쪽 목업의 `defaultPlacement` 를 12 격자로 환산한 것이다(16 -> 12, x0.75).
+     * 러그는 크림 하나만 깔아둔다 — 세이지는 같은 카테고리 교체용이라 둘 다 깔면 겹친다.
+     */
     val STARTER_ROOM: List<PlacedItem> = listOf(
-        PlacedItem(1L, "plant", 5, 0),
-        PlacedItem(2L, "desk", 4, 1),
-        PlacedItem(3L, "rug", 2, 2),
-        PlacedItem(4L, "bed", 2, 2),
-        PlacedItem(5L, "bowl", 4, 3),
-        PlacedItem(6L, "waterbowl", 5, 3),
-        PlacedItem(7L, "lantern", 0, 4),
-        PlacedItem(8L, "humanbed", 0, 1),
+        PlacedItem(1L, "rug-cream", 4, 4),
+        PlacedItem(2L, "plant-tall", 11, 0),
+        PlacedItem(3L, "doghouse-sage", 10, 2),
+        PlacedItem(4L, "cabinet-sage", 0, 0),
+        PlacedItem(5L, "toy-basket", 2, 10),
+        PlacedItem(6L, "feeding-bowls", 8, 10),
+        PlacedItem(7L, "ball-sage", 11, 9),
     )
 
     /**
-     * 방에 돌아다니는 강아지 수. 여기만 바꾸면 된다.
-     * 지금은 견종 4종을 다 보려고 4마리 — 넘으면 앞에서부터 다시 쓴다.
+     * 방에 돌아다니는 강아지 수.
+     *
+     * 지금 견종 시트가 토이푸들 한 장뿐이라 **같은 강아지 두 마리**다.
+     * 저쪽에서 견종이 늘어나면 이 값만 올리면 [DogBreed.ALL] 을 차례로 돌려 쓴다.
      */
-    const val DOG_COUNT = 5
+    const val DOG_COUNT = 2
 }

@@ -14,7 +14,7 @@ import kotlin.math.floor
  */
 class IsoMathTest {
 
-    // 411dp 폭 기기 기준. tw = 411/6 = 68.5
+    // 411dp 폭 기기 기준
     private val g = RoomGeometry.of(411f)
 
     @Test
@@ -31,11 +31,12 @@ class IsoMathTest {
 
     @Test
     fun `칸 중심에서 조금 벗어나도 같은 칸이다`() {
+        // 칸 폭은 원근 때문에 자리마다 다르다. 평균값의 1/5 이면 어느 칸에서도 안쪽이다.
         val nudges = listOf(
-            Offset(g.tw / 5f, 0f),
-            Offset(-g.tw / 5f, 0f),
-            Offset(0f, g.th / 5f),
-            Offset(0f, -g.th / 5f),
+            Offset(g.cell / 5f, 0f),
+            Offset(-g.cell / 5f, 0f),
+            Offset(0f, g.cell / 10f),
+            Offset(0f, -g.cell / 10f),
         )
         for (col in 0 until RoomSpec.GRID) {
             for (row in 0 until RoomSpec.GRID) {
@@ -49,44 +50,69 @@ class IsoMathTest {
         }
     }
 
+    /**
+     * 격자 네 꼭짓점이 **방 그림의 바닥 네 귀퉁이**에 놓이는가.
+     *
+     * 예전에는 좌우 대칭 마름모라 "폭 = GRID x tw" 같은 식으로 잴 수 있었다.
+     * 지금은 원근이 들어간 사각형이라 대칭이 아니고, 기준은 [FloorQuad] 백분율뿐이다.
+     */
     @Test
-    fun `격자 꼭짓점이 예상 위치에 있다`() {
+    fun `격자 꼭짓점이 방 그림의 바닥 귀퉁이에 있다`() {
         val n = RoomSpec.GRID.toFloat()
-        val top = g.toScreenF(0f, 0f)
-        val right = g.toScreenF(n, 0f)
-        val bottom = g.toScreenF(n, n)
-        val left = g.toScreenF(0f, n)
-
-        // 다이아몬드 폭 = 6 * tw, 높이 = 6 * th
-        assertEquals(6f * g.tw, right.x - left.x, 0.01f)
-        assertEquals(6f * g.th, bottom.y - top.y, 0.01f)
-        // 위/아래 꼭짓점은 가로 중앙에 있다
-        assertEquals(top.x, bottom.x, 0.01f)
-        assertEquals(411f / 2f, top.x, 0.01f)
-    }
-
-    @Test
-    fun `타일 비율은 화면 크기와 무관하게 일정하다`() {
-        listOf(320f, 360f, 411f, 480f, 600f).forEach { w ->
-            val geom = RoomGeometry.of(w)
-            assertEquals("width $w", RoomSpec.TILE_RATIO, geom.tw / geom.th, 0.001f)
+        val corners = listOf(
+            FloorQuad.back to g.toScreenF(0f, 0f),
+            FloorQuad.right to g.toScreenF(n, 0f),
+            FloorQuad.front to g.toScreenF(n, n),
+            FloorQuad.left to g.toScreenF(0f, n),
+        )
+        corners.forEach { (pctPoint, screen) ->
+            val wantX = g.stage.left + pctPoint.x / 100f * g.stage.width
+            val wantY = g.stage.top + pctPoint.y / 100f * g.stage.height
+            assertEquals("x of $pctPoint", wantX, screen.x, 0.01f)
+            assertEquals("y of $pctPoint", wantY, screen.y, 0.01f)
         }
     }
 
     /**
-     * toGrid 의 `.toInt()` 는 floor 가 아니라 0 방향 잘림이라
-     * 격자 왼쪽/위쪽 바깥의 -0.x 지점을 0 으로 만들어 버린다.
-     * 그래서 범위 검사는 실수값(toGridF)으로 해야 한다.
+     * 바닥은 **앞쪽이 더 넓다.** 원근 사각형이라는 사실 자체를 고정한다 —
+     * 누가 실수로 대칭 마름모로 되돌리면 여기서 걸린다.
      */
     @Test
-    fun `격자 바깥은 실수값으로만 걸러낼 수 있다`() {
+    fun `앞쪽 칸이 뒤쪽 칸보다 넓다`() {
+        val n = RoomSpec.GRID.toFloat()
+        val backWidth = g.toScreenF(1f, 0f).x - g.toScreenF(0f, 0f).x
+        val frontWidth = g.toScreenF(1f, n).x - g.toScreenF(0f, n).x
+        assertTrue("뒤 $backWidth / 앞 $frontWidth", frontWidth > backWidth)
+    }
+
+    @Test
+    fun `방 크기가 달라져도 격자는 같은 비율에 놓인다`() {
+        listOf(320f, 360f, 411f, 480f, 600f).forEach { w ->
+            val geom = RoomGeometry.of(w)
+            val p = geom.toScreenF(RoomSpec.GRID / 2f, RoomSpec.GRID / 2f)
+            val xPct = (p.x - geom.stage.left) / geom.stage.width * 100f
+            val yPct = (p.y - geom.stage.top) / geom.stage.height * 100f
+            assertEquals("x at width $w", 49.725f, xPct, 0.05f)
+            assertEquals("y at width $w", 71.875f, yPct, 0.05f)
+        }
+    }
+
+    /**
+     * 격자 바깥은 **음수 칸**으로 나와야 한다.
+     *
+     * 옛 `toGrid` 는 `.toInt()` 를 써서 0 방향으로 잘랐다. col 이 -0.4 인 지점(격자
+     * 왼쪽 바깥)이 0 으로 잘려서, 밖으로 끌어낸 아이템이 조용히 (0,0) 에 붙었다.
+     * 지금은 floor 라 -1 이 나온다 — 그래도 범위 검사는 실수값으로 하는 게 안전하다.
+     */
+    @Test
+    fun `격자 바깥은 바깥으로 나온다`() {
         val outside = g.toScreenF(-0.4f, 2f)
 
         val (cInt, _) = g.toGrid(outside)
-        assertEquals("잘림 때문에 0 으로 보인다", 0, cInt)
+        assertEquals("floor 라 -1 이다", -1, cInt)
 
         val (cF, rF) = g.toGridF(outside)
-        assertTrue("실수값은 음수로 나온다", cF < 0f)
+        assertTrue("실수값도 음수다", cF < 0f)
         assertFalse("따라서 바깥으로 판정된다", g.isInside(cF, rF))
     }
 
@@ -138,10 +164,11 @@ class IsoMathTest {
         assertEquals(listOf(2L, 3L, 1L, 4L), order)
 
         // 화면 y 로 정렬하면 안 된다는 것도 확인한다.
-        // (5,0) 과 (0,5) 는 화면 y 가 같지만 x 가 반대편이다.
+        // (5,0) 과 (0,5) 는 방의 정반대편인데 화면 y 는 비슷하다 — y 로 정렬하면
+        // 둘의 앞뒤가 뒤죽박죽이 된다. 깊이 키는 둘 다 5 로 같아야 맞다.
         val a = g.toScreen(5, 0)
         val d = g.toScreen(0, 5)
-        assertEquals(a.y, d.y, 0.01f)
-        assertTrue(a.x > d.x)
+        assertTrue("화면 y 가 비슷해서 y 정렬은 못 쓴다", kotlin.math.abs(a.y - d.y) < g.cell)
+        assertTrue("그런데 x 는 반대편이다", a.x > d.x)
     }
 }

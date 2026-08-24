@@ -19,7 +19,7 @@ object RoomCodec {
      * v1 저장본에는 "dog" 가 칸을 차지한 채 들어있어서, 그대로 읽으면
      * 격자 강아지 + 돌아다니는 강아지가 둘 다 그려진다. 버전을 올려 버린다.
      */
-    private const val VERSION = "v2"
+    private const val VERSION = "v3"
     private const val RECORD = ';'
     private const val FIELD = ','
 

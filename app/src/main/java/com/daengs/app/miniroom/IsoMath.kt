@@ -2,156 +2,263 @@ package com.daengs.app.miniroom
 
 import androidx.compose.runtime.Immutable
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.unit.IntSize
+import kotlin.math.abs
 import kotlin.math.min
 
 // ---------------------------------------------------------------------------
-// CONTEXT.md 4번 섹션의 좌표 변환 수식 — 글자 그대로 옮긴 것. 고치지 말 것.
+// 바닥 기하 — **방 PNG 에 맞춘 사각형**
+//
+// 예전에는 화면 한가운데 놓인 순수 아이소메트릭 마름모였다. `(col-row)*tw/2` 로
+// 계산되는 규칙적인 격자라 방을 코드로 그릴 때는 맞았지만, 이제 방이 그림 한 장
+// (modular_empty_room_v1.png, 1122x1402)이라서 **그림 속 바닥에 격자를 맞춰야** 한다.
+//
+// 그림의 바닥은 완전한 마름모가 아니다. 원근이 들어가서 네 변의 기울기가 제각각인
+// 사각형이고, 양옆에는 짧은 수직 이음매까지 있어 실제 윤곽은 육각형이다.
+// 그래서 네 꼭짓점을 **이중선형 보간(bilinear)** 해서 격자를 만든다.
+//
+// 좌표값은 frankie516c/dog-training-rag 의 room-physics.js 에서 그대로 가져왔다.
+// 그쪽이 이 그림에 픽셀 단위로 재서 뽑은 값이고, 우리가 다시 잴 이유가 없다.
+// (그 파일 주석에 적혀 있듯 그쪽 격자·슬라이드 로직 자체가 이 저장소에서 간 것이다.)
+//
+// ## 기본 단위 = 방 PNG 픽셀
+//
+// 예전 기본 단위는 "타일 64x32" 였다. 아트를 코드로 그리던 시절의 기준이다.
+// 이제 아트가 전부 PNG 이므로 **1 기본 단위 = 방 PNG 의 1 픽셀**로 다시 잡는다.
+// 소품 PNG 크기를 그대로 ArtBox 에 적어도 비율이 맞는다.
 // ---------------------------------------------------------------------------
 
-/** 격자 → 화면 */
-fun toScreen(col: Int, row: Int, tw: Float, th: Float, origin: Offset) = Offset(
-    x = origin.x + (col - row) * tw / 2f,
-    y = origin.y + (col + row) * th / 2f,
-)
-
-/** 화면 → 격자 (터치 판정) */
-fun toGrid(pos: Offset, tw: Float, th: Float, origin: Offset): Pair<Int, Int> {
-    val dx = pos.x - origin.x
-    val dy = pos.y - origin.y
-    val col = ((dx / (tw / 2f) + dy / (th / 2f)) / 2f).toInt()
-    val row = ((dy / (th / 2f) - dx / (tw / 2f)) / 2f).toInt()
-    return col to row
-}
-
-// ---------------------------------------------------------------------------
-// 위 수식을 안전하게 쓰기 위한 보조 함수들
-// ---------------------------------------------------------------------------
-
-/**
- * toGrid 의 잘림(truncation) 이전 실수값.
- *
- * 왜 필요한가: [toGrid] 의 `.toInt()` 는 floor 가 아니라 **0 방향 잘림**이다.
- * col 이 -0.4 인 지점(격자 왼쪽 바깥)도 0 으로 잘려서, 격자 밖으로 끌어낸
- * 아이템이 조용히 (0,0) 에 붙어버린다. 범위 검사는 반드시 이 실수값으로 한다.
- */
-fun toGridF(pos: Offset, tw: Float, th: Float, origin: Offset): Pair<Float, Float> {
-    val dx = pos.x - origin.x
-    val dy = pos.y - origin.y
-    val col = (dx / (tw / 2f) + dy / (th / 2f)) / 2f
-    val row = (dy / (th / 2f) - dx / (tw / 2f)) / 2f
-    return col to row
-}
-
-/** 격자 → 화면, 연속 좌표판. 아이템 중심·드래그 프리뷰에 쓴다. */
-fun toScreenF(col: Float, row: Float, tw: Float, th: Float, origin: Offset) = Offset(
-    x = origin.x + (col - row) * tw / 2f,
-    y = origin.y + (col + row) * th / 2f,
-)
-
-/** 방 규격. 아트는 전부 이 기본 단위(타일 64x32)로 그린다. */
+/** 방 규격. */
 object RoomSpec {
-    const val GRID = 6
-
-    /** 아트 저작 기준 타일 크기. 화면 크기와 무관한 "기본 단위". */
     /**
-     * 타일 가로:세로 비율. **이 값 하나로 방 전체 투영이 결정된다.**
+     * 바닥 격자 칸 수.
      *
-     * 직교 투영에서 `타일 비율 = 1 / sin(카메라 고도각)` 이므로
-     *   2.0000f -> 고도 30도 (CONTEXT.md 4번의 원래 규격 64x32)
-     *   1.4142f -> 고도 45도 (Kenney 프리렌더 스프라이트가 이 각도)
-     *
-     * 되돌리려면 이 상수만 2f 로 바꾸면 된다.
+     * 저쪽 목업은 16 이었다. 16 이면 칸이 잘아서 소품을 세밀히 놓을 수 있지만
+     * 우리 소품 footprint(러그 7x7 등)가 방을 거의 덮는다. 6 은 반대로 너무 성겨서
+     * 소품 하나가 칸 하나를 통째로 먹는다. 12 는 그 중간이고, 16 대비 정확히
+     * 0.75 배라 저쪽 좌표와 footprint 를 나눗셈 한 번으로 환산할 수 있다.
      */
-    const val TILE_RATIO = 2f
+    const val GRID = 12
 
-    const val BASE_TILE_W = 64f
-    const val BASE_TILE_H = BASE_TILE_W / TILE_RATIO
+    /** 방 PNG 원본 크기. 기본 단위가 이 픽셀이다. */
+    const val ROOM_PNG_W = 1122f
+    const val ROOM_PNG_H = 1402f
 
     /**
-     * 벽 높이와 벽 위 여백은 **tw 배수**로 잡는다.
+     * 바닥 타원을 얼마나 납작하게 그릴지. 그림자에만 쓴다.
      *
-     * th 배수로 잡으면 TILE_RATIO 를 바꿀 때 벽 높이까지 같이 변해서
-     * 무엇 때문에 달라 보이는지 구분이 안 된다. tw 기준이면 지면 비율만 바뀐다.
-     * (2.5*tw = 예전의 5*th 와 같은 높이)
+     * 예전에는 이 값이 방 전체 투영을 결정했지만, 이제 투영은 [FloorQuad] 네 꼭짓점이
+     * 정한다. 남은 쓰임은 "바닥에 눕는 타원"의 납작한 정도 하나뿐이다.
+     * 값은 그림에서 역산했다 — 뒤 모서리에서 오른쪽 모서리까지가 PNG 픽셀로
+     * 가로 469 / 세로 224 라 약 2.1 이다.
      */
-    const val WALL_TW = 2.5f
-    const val HEAD_TW = 0.25f
+    const val TILE_RATIO = 2.1f
 
-    /** 방 전체 높이를 tw 배수로. 여백 + 벽 + 격자 */
-    const val ROOM_H_TW = HEAD_TW + WALL_TW + GRID / TILE_RATIO
-
-    /** 방의 가로:세로 비율 */
-    const val ASPECT = GRID / ROOM_H_TW
+    /** 방의 가로:세로 비율. */
+    const val ASPECT = ROOM_PNG_W / ROOM_PNG_H
 }
 
 /**
- * 화면 폭 하나에서 파생된 방의 기하 정보 전부.
+ * 방 PNG 안에서 바닥이 차지하는 자리 — **그림 크기에 대한 백분율**이다.
  *
- * th 는 tw 에서 [RoomSpec.TILE_RATIO] 로 나와서 비율이 어긋날 수 없다.
- * [scale] 은 기본 단위 1 이 화면 px 로 몇인지를 나타내는 유일한 환산 계수다.
+ * 백분율이라 화면 크기가 변해도 그대로 쓸 수 있다.
+ */
+object FloorQuad {
+    /** 안쪽(뒤) 모서리. 격자 (0,0) 이다. */
+    val back = Offset(56.6f, 54.1f)
+
+    /** col 축 끝. 격자 (GRID, 0) */
+    val right = Offset(98.4f, 70.1f)
+
+    /** 바깥(앞) 모서리. 격자 (GRID, GRID) */
+    val front = Offset(43f, 94.5f)
+
+    /** row 축 끝. 격자 (0, GRID) */
+    val left = Offset(0.9f, 68.8f)
+
+    /**
+     * 실제로 칠해진 바닥의 윤곽. **배치 격자(사각형)와 다르다.**
+     *
+     * 그림에서 바닥 양옆이 벽에 닿는 부분에 짧은 수직 이음매가 있어서, 윤곽은
+     * 사각형이 아니라 육각형이다. 소품이 바닥 밖으로 삐져나왔는지 볼 때는
+     * 배치 격자가 아니라 이쪽을 봐야 한다.
+     */
+    val outline = listOf(
+        back,
+        right,
+        Offset(95.6f, 72.6f),
+        front,
+        Offset(2.8f, 72.7f),
+        left,
+    )
+}
+
+/**
+ * 화면에 놓인 방의 기하 정보 전부.
+ *
+ * @param stage 방 PNG 가 그려지는 사각형(px). 모든 백분율 좌표가 이걸 기준으로 푼다
+ * @param scale 기본 단위(=방 PNG 픽셀) 1 이 화면 px 로 몇인가
  */
 @Immutable
 data class RoomGeometry(
-    val tw: Float,
-    val th: Float,
-    val wallPx: Float,
-    val origin: Offset,
+    val stage: Rect,
     val scale: Float,
 ) {
-    fun toScreen(col: Int, row: Int): Offset = toScreen(col, row, tw, th, origin)
+    /**
+     * 칸 하나의 대략적인 가로 폭(px).
+     *
+     * 원근 때문에 칸 폭은 뒤에서 앞으로 갈수록 넓어진다 — 이건 **평균값**이라
+     * 그림자처럼 정밀도가 필요 없는 곳에만 쓴다. 위치 계산에는 절대 쓰지 말 것.
+     */
+    val cell: Float
+        get() = stage.width * (FloorQuad.right.x - FloorQuad.back.x) / 100f / RoomSpec.GRID
 
-    fun toScreenF(col: Float, row: Float): Offset = toScreenF(col, row, tw, th, origin)
-
-    fun toGrid(pos: Offset): Pair<Int, Int> = toGrid(pos, tw, th, origin)
-
-    fun toGridF(pos: Offset): Pair<Float, Float> = toGridF(pos, tw, th, origin)
-
-    /** 발자국(footprint)이 차지하는 바닥 영역의 중심. 1x1 이면 타일 중심이다. */
-    fun footprintCenter(col: Int, row: Int, footprint: IntSize): Offset =
-        toScreenF(col + footprint.width / 2f, row + footprint.height / 2f)
+    /** 백분율 좌표 → 화면 px */
+    private fun pct(p: Offset) = Offset(
+        stage.left + p.x / 100f * stage.width,
+        stage.top + p.y / 100f * stage.height,
+    )
 
     /**
-     * 화면 좌표 → 왼쪽 벽 평면. [leftWallPoint] 의 역함수.
+     * 격자 → 화면. 네 꼭짓점의 **이중선형 보간**이다.
      *
-     * u = 벽을 따라간 거리(격자 단위, 0 이 안쪽 모서리), h = 바닥에서 올라간 높이(px).
-     * 벽에 붙은 것(문·창문)을 눌렀는지 판정할 때 쓴다.
+     * 마름모였다면 `(col-row)` 한 줄이면 됐지만, 원근이 들어간 사각형은 네 변의
+     * 기울기가 달라서 네 꼭짓점을 다 섞어야 한다.
      */
-    fun toLeftWall(pos: Offset): Pair<Float, Float> {
-        val u = (origin.x - pos.x) / (tw / 2f)
-        val h = origin.y + u * th / 2f - pos.y
-        return u to h
+    fun toScreenF(col: Float, row: Float): Offset {
+        val u = col / RoomSpec.GRID
+        val v = row / RoomSpec.GRID
+        val iu = 1f - u
+        val iv = 1f - v
+        return pct(
+            Offset(
+                iu * iv * FloorQuad.back.x + u * iv * FloorQuad.right.x +
+                    u * v * FloorQuad.front.x + iu * v * FloorQuad.left.x,
+                iu * iv * FloorQuad.back.y + u * iv * FloorQuad.right.y +
+                    u * v * FloorQuad.front.y + iu * v * FloorQuad.left.y,
+            )
+        )
     }
+
+    fun toScreen(col: Int, row: Int): Offset = toScreenF(col.toFloat(), row.toFloat())
+
+    /**
+     * 화면 → 격자. [toScreenF] 의 역함수.
+     *
+     * 이중선형 사상은 닫힌 형태의 역함수가 없어서 **뉴턴 반복**으로 푼다.
+     * 8 회면 화면 픽셀 오차 아래로 수렴한다.
+     *
+     * **값을 격자 안으로 자르지 않는다.** 드래그 코드가 "손가락이 바닥 밖으로
+     * 나갔다"를 알아야 하기 때문이다 — 예전 `toInt()` 잘림 때문에 격자 밖 아이템이
+     * (0,0) 으로 순간이동하던 버그와 같은 이유다.
+     */
+    fun toGridF(pos: Offset): Pair<Float, Float> {
+        val target = Offset(
+            (pos.x - stage.left) / stage.width * 100f,
+            (pos.y - stage.top) / stage.height * 100f,
+        )
+        val h = FloorQuad.right - FloorQuad.back
+        val vv = FloorQuad.left - FloorQuad.back
+        val d = target - FloorQuad.back
+        val det = h.x * vv.y - h.y * vv.x
+        var u = (d.x * vv.y - d.y * vv.x) / det
+        var v = (h.x * d.y - h.y * d.x) / det
+
+        repeat(8) {
+            val p = quadAt(u, v)
+            val ex = target.x - p.x
+            val ey = target.y - p.y
+            val du = Offset(
+                (1f - v) * (FloorQuad.right.x - FloorQuad.back.x) +
+                    v * (FloorQuad.front.x - FloorQuad.left.x),
+                (1f - v) * (FloorQuad.right.y - FloorQuad.back.y) +
+                    v * (FloorQuad.front.y - FloorQuad.left.y),
+            )
+            val dv = Offset(
+                (1f - u) * (FloorQuad.left.x - FloorQuad.back.x) +
+                    u * (FloorQuad.front.x - FloorQuad.right.x),
+                (1f - u) * (FloorQuad.left.y - FloorQuad.back.y) +
+                    u * (FloorQuad.front.y - FloorQuad.right.y),
+            )
+            val jac = du.x * dv.y - du.y * dv.x
+            if (abs(jac) < 1e-9f) return@repeat
+            u += (ex * dv.y - ey * dv.x) / jac
+            v += (du.x * ey - du.y * ex) / jac
+        }
+        return (u * RoomSpec.GRID) to (v * RoomSpec.GRID)
+    }
+
+    /** 격자 좌표(정수). 범위 검사에는 쓰지 말 것 — [toGridF] 를 쓴다. */
+    fun toGrid(pos: Offset): Pair<Int, Int> {
+        val (c, r) = toGridF(pos)
+        return kotlin.math.floor(c).toInt() to kotlin.math.floor(r).toInt()
+    }
+
+    /** 발자국(footprint)이 차지하는 바닥 영역의 중심. */
+    fun footprintCenter(col: Int, row: Int, footprint: IntSize): Offset =
+        toScreenF(col + footprint.width / 2f, row + footprint.height / 2f)
 
     /** 격자 밖으로 나갔는지 — 반드시 실수값으로 검사한다. */
     fun isInside(colF: Float, rowF: Float): Boolean =
         colF >= 0f && rowF >= 0f && colF < RoomSpec.GRID && rowF < RoomSpec.GRID
 
+    /**
+     * 화면 높이 [y] 에서 **칠해진 바닥**이 가로로 걸치는 구간(px).
+     *
+     * 소품의 접지 상자가 바닥 그림 밖으로 나갔는지 볼 때 쓴다. 배치 격자는
+     * 사각형이지만 그림 속 바닥은 육각형이라([FloorQuad.outline]) 둘이 다르다.
+     * 걸치는 변이 둘 미만이면 그 높이에는 바닥이 없다는 뜻이라 null 이다.
+     */
+    fun floorRangeAt(y: Float): ClosedFloatingPointRange<Float>? {
+        val corners = FloorQuad.outline.map(::pct)
+        val hits = ArrayList<Float>(2)
+        for (i in corners.indices) {
+            val a = corners[i]
+            val b = corners[(i + 1) % corners.size]
+            if (a.y == b.y) continue
+            if (y < min(a.y, b.y) || y > kotlin.math.max(a.y, b.y)) continue
+            hits += a.x + (b.x - a.x) * ((y - a.y) / (b.y - a.y))
+        }
+        if (hits.size < 2) return null
+        return hits.min()..hits.max()
+    }
+
+    /** 사각형이 칠해진 바닥 안에 온전히 들어가는가. 위·아래 변 둘 다 본다. */
+    fun floorContains(box: Rect, gap: Float = 0f): Boolean {
+        val top = floorRangeAt(box.top) ?: return false
+        val bottom = floorRangeAt(box.bottom) ?: return false
+        return box.left >= kotlin.math.max(top.start, bottom.start) + gap &&
+            box.right <= min(top.endInclusive, bottom.endInclusive) - gap
+    }
+
+    private fun quadAt(u: Float, v: Float): Offset {
+        val iu = 1f - u
+        val iv = 1f - v
+        return Offset(
+            iu * iv * FloorQuad.back.x + u * iv * FloorQuad.right.x +
+                u * v * FloorQuad.front.x + iu * v * FloorQuad.left.x,
+            iu * iv * FloorQuad.back.y + u * iv * FloorQuad.right.y +
+                u * v * FloorQuad.front.y + iu * v * FloorQuad.left.y,
+        )
+    }
+
     companion object {
         /**
-         * 주어진 상자 안에 방을 통째로 넣는다.
+         * 주어진 상자 안에 방 PNG 를 통째로 넣는다. 비율은 그림 비율 그대로.
          *
-         * 가로·세로 중 **더 빡빡한 쪽**으로 타일 크기를 정하므로, 화면 높이가
-         * 모자라면 방이 알아서 작아진다 (스크롤 없이 한 화면에 담기 위해 필요).
-         * tw:th = 2:1 은 여기서도 구성상 깨지지 않는다.
+         * 가로·세로 중 더 빡빡한 쪽으로 맞추므로 화면이 좁으면 알아서 작아진다.
          */
         fun of(widthPx: Float, heightPx: Float): RoomGeometry {
-            val tw = min(widthPx / RoomSpec.GRID, heightPx / RoomSpec.ROOM_H_TW)
-            val th = tw / RoomSpec.TILE_RATIO
-            val wall = RoomSpec.WALL_TW * tw
-            val head = RoomSpec.HEAD_TW * tw
-            // 남는 세로 공간은 위아래로 나눠 방을 가운데 둔다
-            val top = ((heightPx - RoomSpec.ROOM_H_TW * tw) / 2f).coerceAtLeast(0f)
-            return RoomGeometry(
-                tw = tw,
-                th = th,
-                wallPx = wall,
-                origin = Offset(widthPx / 2f, top + head + wall),
-                scale = tw / RoomSpec.BASE_TILE_W,
-            )
+            val s = min(widthPx / RoomSpec.ROOM_PNG_W, heightPx / RoomSpec.ROOM_PNG_H)
+            val w = RoomSpec.ROOM_PNG_W * s
+            val h = RoomSpec.ROOM_PNG_H * s
+            val left = (widthPx - w) / 2f
+            val top = (heightPx - h) / 2f
+            return RoomGeometry(Rect(left, top, left + w, top + h), s)
         }
 
-        /** 가로만 아는 경우 — 방 비율대로 세로를 잡는다. */
+        /** 가로만 아는 경우 — 그림 비율대로 세로를 잡는다. */
         fun of(widthPx: Float): RoomGeometry = of(widthPx, widthPx / RoomSpec.ASPECT)
     }
 }
