@@ -70,7 +70,20 @@ object RoomSpec {
      *
      * 가로로는 절대 안 넘친다 — 좌우 벽이 잘리면 방이 잘린 티가 확 난다.
      */
-    const val OVERSCAN = 1.06f
+    const val OVERSCAN = 1.10f
+
+    /**
+     * 방 아래를 얼마나 잘라낼지 (방 높이 대비).
+     *
+     * 그림 맨 아래에는 바닥 앞 모서리 **밑의 굽도리**가 조금 나와 있다. 원래는 방
+     * 이름표가 아래 한가운데에서 그걸 가리고 있었는데, 이름표를 오른쪽으로 옮기니
+     * 그대로 드러나서 어색해졌다.
+     *
+     * 바닥 앞 모서리는 그림 높이의 94.5% 지점이므로([FloorQuad.front]) 5% 만 잘라내면
+     * **굽도리만 없어지고 바닥은 한 줄도 안 잘린다.** 이 값을 더 올리면 물건을 놓는
+     * 앞줄이 잘리기 시작한다.
+     */
+    const val BOTTOM_BLEED = 0.05f
 }
 
 /**
@@ -275,7 +288,9 @@ data class RoomGeometry(
             //
             // 남을 때도 가운데가 아니라 **아래쪽에 붙인다**(0.85). 위에는 오늘 카드가
             // 겹쳐 있어서 여백이 위에 있어야 덜 답답하고, 방도 손에 가까워진다.
-            val top = if (h > heightPx) heightPx - h else (heightPx - h) * 0.85f
+            val fit = if (h > heightPx) heightPx - h else (heightPx - h) * 0.85f
+            // 아래로 더 밀어서 굽도리를 화면 밖으로 내보낸다
+            val top = fit + h * RoomSpec.BOTTOM_BLEED
             return RoomGeometry(Rect(left, top, left + w, top + h), s)
         }
 
