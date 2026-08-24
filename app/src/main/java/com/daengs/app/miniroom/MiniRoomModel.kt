@@ -103,5 +103,5 @@ object RoomDefaults {
      * 방에 돌아다니는 강아지 수. 여기만 바꾸면 된다.
      * 지금은 견종 4종을 다 보려고 4마리 — 넘으면 앞에서부터 다시 쓴다.
      */
-    const val DOG_COUNT = 4
+    const val DOG_COUNT = 5
 }
