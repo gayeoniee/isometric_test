@@ -87,6 +87,20 @@ class DogHerd(count: Int, seed: Int = 7) {
 
     init {
         dogs = List(count) { newDog(it) }
+        spread()
+    }
+
+    /**
+     * 처음 자리를 서로 벌린다.
+     *
+     * [newDog] 안에서는 못 한다 — 리스트를 만드는 중이라 [dogs] 가 아직 비어 있어서
+     * 간격을 잴 상대가 없다. 리스트가 완성된 뒤 한 번 훑어야 앞의 마리들이 보인다.
+     */
+    private fun spread() {
+        for (d in dogs) {
+            d.pos = freeSpot(emptySet(), d)
+            d.target = d.pos
+        }
     }
 
     /**
@@ -179,13 +193,46 @@ class DogHerd(count: Int, seed: Int = 7) {
         return Offset(x, y)
     }
 
-    /** 막히지 않은 무작위 목표. 방이 꽉 차 있으면 그냥 아무 데나 (탈출 로직이 꺼내준다). */
-    private fun freeSpot(blocked: Set<IntOffset>): Offset {
+    /**
+     * 막히지 않고 **다른 강아지와도 떨어진** 무작위 목표.
+     *
+     * 강아지끼리는 서로를 막지 않는다 — 지나가다 스치는 건 자연스럽고, 서로 막으면
+     * 좁은 방에서 넷이 교착된다. 겹쳐 보이는 건 대부분 **둘이 같은 자리에 오래 서 있을
+     * 때**라, 오래 머무는 자리(목적지)만 벌려두면 체감이 거의 해결된다.
+     *
+     * 간격은 **보장이 아니라 노력**이다. 가구가 많거나 방이 좁으면 지킬 자리가 없는데,
+     * 그때 못 찾았다고 멈추면 강아지가 얼어붙는다. 그래서 두 단계로 물러선다 —
+     * 먼저 [MIN_DOG_GAP] 을 지키며 찾고, 안 되면 간격을 포기하고 막힌 칸만 피한다.
+     *
+     * @param self 자기 자신은 간격 검사에서 뺀다
+     */
+    private fun freeSpot(blocked: Set<IntOffset>, self: DogActor? = null): Offset {
+        repeat(12) {
+            val p = randomSpot()
+            if (!blockedAt(p.x, p.y, blocked) && farFromOthers(p, self)) return p
+        }
+        // 간격을 못 지키는 상황 — 막힌 칸만 피한다
         repeat(12) {
             val p = randomSpot()
             if (!blockedAt(p.x, p.y, blocked)) return p
         }
         return randomSpot()
+    }
+
+    /**
+     * [p] 가 다른 강아지의 **자리와 목적지 양쪽**에서 떨어져 있는가.
+     *
+     * 목적지도 같이 보는 게 중요하다. 지금 자리만 보면 둘이 서로의 목적지를 향해
+     * 걸어가다 같은 지점에서 만나 겹친 채 쉰다 — 뽑는 순간엔 멀었으니 통과해버린다.
+     */
+    private fun farFromOthers(p: Offset, self: DogActor?): Boolean {
+        val gapSq = MIN_DOG_GAP * MIN_DOG_GAP
+        for (o in dogs) {
+            if (o === self) continue
+            if ((o.pos - p).getDistanceSquared() < gapSq) return false
+            if ((o.target - p).getDistanceSquared() < gapSq) return false
+        }
+        return true
     }
 
     /** 가장 가까운 빈 칸의 한가운데. 가구 밑에 깔렸을 때 걸어 나갈 방향이 된다. */
@@ -252,7 +299,7 @@ class DogHerd(count: Int, seed: Int = 7) {
                 // 오래 쉰다. 계속 돌아다니면 방이 소란스럽고, 원래 원한 그림은
                 // "제자리에서 꼬리 흔들기" 쪽이다. 여기 한 곳만 보면 된다.
                 d.restUntil = nowMs + 2500L + rnd.nextLong(5000)
-                d.target = freeSpot(blocked)
+                d.target = freeSpot(blocked, d)
                 d.moving = false
                 continue
             }
@@ -264,7 +311,7 @@ class DogHerd(count: Int, seed: Int = 7) {
             val gained = (next - d.pos).getDistance()
             if (gained < step * 0.2f) {
                 // 미끄러질 여지도 없이 막혔다. 떠는 대신 다른 목표를 고른다.
-                d.target = freeSpot(blocked)
+                d.target = freeSpot(blocked, d)
                 d.restUntil = nowMs + 250L
                 d.moving = false
                 continue
@@ -296,6 +343,21 @@ class DogHerd(count: Int, seed: Int = 7) {
      */
     fun sortedByDepth(): List<DogActor> =
         dogs.sortedWith(compareBy({ it.depthCell }, { it.pos.x + it.pos.y }))
+
+    companion object {
+        /**
+         * 강아지끼리 **목적지를 벌리는** 최소 거리(격자 단위).
+         *
+         * 몸 반경([bodyRadius]) 의 세 배쯤. 머리를 키운 뒤(등신 2.2 → 1.7) 실루엣 폭이
+         * 넓어져서, 예전처럼 목적지를 완전 무작위로 뽑으면 둘이 겹친 채 오래 서 있는
+         * 판이 눈에 띄게 늘었다.
+         *
+         * 6x6 격자에 4마리라 이 값이면 자리가 넉넉하다. 마리 수를 늘릴 거면
+         * 여길 같이 봐야 한다 — 값이 크고 마리가 많으면 [freeSpot] 의 1단계가
+         * 매번 실패해서 간격이 사실상 없는 것과 같아진다.
+         */
+        const val MIN_DOG_GAP = 0.7f
+    }
 }
 
 /**
