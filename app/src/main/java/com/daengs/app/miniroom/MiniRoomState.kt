@@ -316,8 +316,11 @@ class MiniRoomState internal constructor(initial: List<PlacedItem>) {
          *
          * 발끝 한 점만 검사하면 몸통이 가구에 반쯤 파묻힌 채 멈춘다. 그렇다고 크게
          * 잡으면 가구 사이를 못 지나간다 — 통로가 2*이 값 보다 넓어야 한다.
+         *
+         * 저쪽 목업은 16 격자에서 0.58 이었다. 우리는 12 격자라 칸이 1.33 배 크므로
+         * 같은 몸집이 되려면 칸 단위 값은 12/16 배가 된다.
          */
-        const val DOG_BODY_RADIUS = 0.22f
+        const val DOG_BODY_RADIUS = 0.435f
 
         const val LAYER_FLOOR = 0
         const val LAYER_ITEM = 1

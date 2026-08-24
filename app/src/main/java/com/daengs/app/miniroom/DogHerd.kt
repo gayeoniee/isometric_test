@@ -106,7 +106,7 @@ class DogHerd(count: Int, seed: Int = 7) {
             id = i,
             breed = DogBreed.ALL[i % DogBreed.ALL.size],
             sizeScale = 1f,
-            speed = 0.55f + rnd.nextFloat() * 0.5f,
+            speed = WALK_SPEED,
             // 무작위가 아니라 대기 주기(8프레임 / 6fps ≈ 1333ms)를 마리 수로 나눠 흩는다.
             // 무작위면 둘이 우연히 겹쳐서 여전히 같이 움직이는 판이 나온다.
             animOffsetMs = i * 430L + rnd.nextLong(140),
@@ -293,10 +293,10 @@ class DogHerd(count: Int, seed: Int = 7) {
 
             val delta = d.target - d.pos
             val dist = delta.getDistance()
-            if (dist < 0.06f) {
+            if (dist < ARRIVE_DIST) {
                 // 오래 쉰다. 계속 돌아다니면 방이 소란스럽고, 원래 원한 그림은
                 // "제자리에서 꼬리 흔들기" 쪽이다. 여기 한 곳만 보면 된다.
-                d.restUntil = nowMs + 2500L + rnd.nextLong(5000)
+                d.restUntil = nowMs + REST_MIN_MS + rnd.nextLong(REST_SPREAD_MS)
                 d.target = freeSpot(blocked, d)
                 d.moving = false
                 continue
@@ -324,7 +324,10 @@ class DogHerd(count: Int, seed: Int = 7) {
 
             d.pos = next
             d.moving = true
-            d.phase += gained * 9f
+            // 걸음 시계는 **시간 기반**이다 — 저쪽 목업 그대로.
+            // 거리 기반으로 하면 발이 안 미끄러지는 대신, 미끄러져 돌아가는 동안
+            // 다리가 얼어붙어 더 어색하다.
+            d.phase += dt * WALK_FPS
         }
 
         // 앉기 <-> 서기. 위 루프가 `continue` 로 여러 군데서 빠져나가므로 여기서 한 번에 민다.
@@ -344,17 +347,40 @@ class DogHerd(count: Int, seed: Int = 7) {
 
     companion object {
         /**
+         * 걷는 속도(격자 단위/초).
+         *
+         * 저쪽 목업은 16 격자에서 0.5 였다. 우리는 12 격자라 칸이 1.33 배 크므로
+         * 같은 화면 속도가 되려면 **칸 단위 값은 그만큼 작아야** 한다 (0.5 x 12/16).
+         *
+         * 마리마다 흔들지 않는다. 저쪽은 이 값을 견종 속성으로 두고 있어서,
+         * 나중에 "치와와는 총총, 허스키는 성큼" 같은 걸 하려면 [DogBreed] 로 옮긴다.
+         */
+        const val WALK_SPEED = 0.375f
+
+        /** 워크 시트 프레임 속도. 시트가 4프레임이라 초당 1.25 바퀴 돈다. */
+        const val WALK_FPS = 5f
+
+        /** 목적지에 닿았다고 볼 거리. 속도와 같은 이유로 12/16 배 했다. */
+        const val ARRIVE_DIST = 0.045f
+
+        /** 도착 후 쉬는 시간. 4~10초 — 저쪽 값 그대로다. */
+        const val REST_MIN_MS = 4000L
+        const val REST_SPREAD_MS = 6000L
+
+        /**
          * 강아지끼리 **목적지를 벌리는** 최소 거리(격자 단위).
          *
          * 몸 반경([bodyRadius]) 의 세 배쯤. 머리를 키운 뒤(등신 2.2 → 1.7) 실루엣 폭이
          * 넓어져서, 예전처럼 목적지를 완전 무작위로 뽑으면 둘이 겹친 채 오래 서 있는
          * 판이 눈에 띄게 늘었다.
          *
-         * 6x6 격자에 4마리라 이 값이면 자리가 넉넉하다. 마리 수를 늘릴 거면
-         * 여길 같이 봐야 한다 — 값이 크고 마리가 많으면 [freeSpot] 의 1단계가
-         * 매번 실패해서 간격이 사실상 없는 것과 같아진다.
+         * 몸 반경([MiniRoomState.DOG_BODY_RADIUS]) 의 세 배쯤. 격자가 6 에서 12 로
+         * 커지면서 같이 키웠다 — 칸 단위 값이라 격자가 바뀌면 뜻이 달라진다.
+         *
+         * 마리 수를 늘릴 거면 여길 같이 봐야 한다. 값이 크고 마리가 많으면
+         * [freeSpot] 의 1단계가 매번 실패해서 간격이 사실상 없는 것과 같아진다.
          */
-        const val MIN_DOG_GAP = 0.7f
+        const val MIN_DOG_GAP = 1.3f
     }
 }
 

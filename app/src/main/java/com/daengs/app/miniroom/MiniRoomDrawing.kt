@@ -18,6 +18,7 @@ import com.daengs.app.miniroom.sprite.drawSpriteFrame
 import com.daengs.app.miniroom.sprite.frameIndexAt
 import com.daengs.app.ui.theme.RoomPalette
 import kotlin.math.abs
+import kotlin.math.floor
 import kotlin.math.sin
 
 /** 기본 단위 아트를 화면에 올리는 **유일한** 변환 지점. */
@@ -139,6 +140,14 @@ fun DrawScope.drawCellGhost(
  *
  * 멈춰 있을 땐 느린 숨쉬기와 꼬리 흔들기만 남는다.
  */
+/**
+ * 서 있을 때 세워둘 프레임.
+ *
+ * 0 번이 아니라 1 번이다. 4프레임 워크 시트에서 0 번은 발이 완전히 벌어진 자세라
+ * 정지 화면으로 쓰면 어정쩡하다. 1 번이 네 발이 가장 가지런한 자세다.
+ */
+private const val DOG_IDLE_FRAME = 1
+
 fun DrawScope.drawDog(
     art: ItemArt,
     dog: DogActor,
@@ -197,7 +206,9 @@ fun DrawScope.drawDog(
             )
 
             is ItemArt.Sheet -> {
-                val frame = frameIndexAt(t, art.frameCount, art.fps)
+                // 걸을 때만 시트를 돌리고, 멈추면 **1번 프레임에 세운다** — 저쪽 목업
+                // 그대로다. 서 있는데 다리가 계속 움직이면 제자리걸음으로 보인다.
+                val frame = if (dog.moving) floor(dog.phase).toInt() else DOG_IDLE_FRAME
                 if (art.sheet != null) {
                     drawSpriteFrame(art.sheet, frame, art.box.size, alpha = alpha)
                 } else {
