@@ -17,3 +17,6 @@ local.properties
 # python
 __pycache__/
 *.pyc
+
+# Android Studio 프로젝트 설정 — 사람마다 달라서 공유하지 않는다
+.idea/
