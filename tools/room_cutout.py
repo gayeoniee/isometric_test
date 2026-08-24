@@ -35,7 +35,14 @@
      그래서 색조까지 본다. 그림자는 바탕색에 밝기만 곱한 것이므로
      `픽셀 ~= 바탕색 x k` 가 성립한다. 회색빛 벽면은 이 식에서 크게 벗어난다.
 
-그림자는 지우지 않고 반투명 검정으로 바꿔 남긴다. 통째로 지우면 방이 허공에 뜬다.
+  3. **외톨이 털어내기** — 경계가 디더링(체크무늬)이라 배경만 지우면 반쪽이 점으로
+     남아 희끗희끗해진다. 이웃 넷 중 셋 이상이 빈 픽셀은 그 찌꺼기다.
+
+## 그림자는 남기지 않는다
+
+처음엔 그림자를 반투명 검정으로 살려뒀는데, **분홍 배경 위에서 뿌연 회색 얼룩으로
+보였다.** 배경색이 달라지면 같은 그림자가 다르게 읽힌다. 그래서 배경과 함께 지운다.
+필요해지면 방 밑에 코드로 그리는 편이 배경색을 따라가므로 낫다.
 
 사용:
     uv run tools/room_cutout.py <입력.png> [출력.png]
@@ -79,22 +86,49 @@ def cutout(src_path: str, dst_path: str) -> None:
     shadow = peel_shadow(pixels, width, height, outside, base)
 
     cleared = 0
-    shaded = 0
     for y in range(height):
         for x in range(width):
             i = y * width + x
-            if shadow[i]:
-                r, g, b, _ = pixels[x, y]
-                darkness = base_luma - luma((r, g, b))
-                a = min(1.0, max(0.0, darkness) / SHADOW_DEPTH) * SHADOW_ALPHA
-                pixels[x, y] = (36, 26, 18, int(a * 255))
-                shaded += 1
-            elif outside[i]:
+            if shadow[i] or outside[i]:
                 pixels[x, y] = (0, 0, 0, 0)
                 cleared += 1
 
+    speckles = despeckle(pixels, width, height)
+
     image.save(dst_path)
-    print(f"바탕색 {base}  ->  투명 {cleared:,}px, 그림자 {shaded:,}px")
+    print(f"바탕색 {base}  ->  투명 {cleared:,}px, 외톨이 {speckles:,}px")
+
+
+def despeckle(pixels, width, height, rounds: int = 3) -> int:
+    """
+    가장자리에 남은 **디더링 찌꺼기**를 털어낸다.
+
+    픽셀 아트는 경계를 체크무늬로 섞어 부드럽게 보이게 한다. 배경만 골라 지우면
+    그 체크무늬의 반쪽이 공중에 뜬 점으로 남아 희끗희끗해진다.
+
+    이웃 넷 중 **셋 이상**이 비어 있으면 찌꺼기로 본다. 1px 짜리 얇은 선(벽 모서리
+    몰딩)은 위아래 이웃이 살아 있어 둘만 비므로 살아남는다.
+    """
+    removed = 0
+    for _ in range(rounds):
+        doomed = []
+        for y in range(height):
+            for x in range(width):
+                if pixels[x, y][3] == 0:
+                    continue
+                empty = 0
+                for dx, dy in ((-1, 0), (1, 0), (0, -1), (0, 1)):
+                    nx, ny = x + dx, y + dy
+                    if not (0 <= nx < width and 0 <= ny < height) or pixels[nx, ny][3] == 0:
+                        empty += 1
+                if empty >= 3:
+                    doomed.append((x, y))
+        if not doomed:
+            break
+        for x, y in doomed:
+            pixels[x, y] = (0, 0, 0, 0)
+        removed += len(doomed)
+    return removed
 
 
 def peel_shadow(pixels, width, height, outside, base):
