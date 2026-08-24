@@ -49,7 +49,9 @@ fun DaengsTopBar(
         modifier
             .fillMaxWidth()
             .background(CreamBg)
-            .padding(start = 18.dp, end = 12.dp, top = 8.dp, bottom = 10.dp),
+            // 방에 세로를 양보하려고 바짝 붙였다. 방이 세로로 긴 그림이라 위에서 몇 dp 를
+            // 아끼면 방 전체 크기가 그만큼 커진다.
+            .padding(start = 18.dp, end = 12.dp, top = 2.dp, bottom = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         DaengsLogo()
@@ -66,7 +68,7 @@ fun DaengsTopBar(
                 .clickable(onClick = onBell)
                 .padding(6.dp),
         ) {
-            DaengsIconView(DaengsIcon.Bell, Modifier.size(24.dp), tint = TextMuted)
+            DaengsIconView(DaengsIcon.Bell, Modifier.size(22.dp), tint = TextMuted)
         }
         Spacer(Modifier.width(6.dp))
 
@@ -77,7 +79,7 @@ fun DaengsTopBar(
                 .padding(2.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            DogAvatar(Modifier.size(36.dp))
+            DogAvatar(Modifier.size(32.dp))
             DaengsIconView(DaengsIcon.CaretDown, Modifier.size(15.dp), tint = TextMuted)
         }
     }
@@ -91,7 +93,7 @@ private fun DaengsLogo() {
                 "댕스",
                 color = DaengPinkDeep,
                 fontWeight = FontWeight.Black,
-                fontSize = 24.sp,
+                fontSize = 21.sp,
             )
             DaengsIconView(
                 DaengsIcon.Paw,
@@ -103,8 +105,8 @@ private fun DaengsLogo() {
             "DAENGS",
             color = TextMuted,
             fontWeight = FontWeight.SemiBold,
-            fontSize = 9.sp,
-            letterSpacing = 3.sp,
+            fontSize = 8.sp,
+            letterSpacing = 2.6.sp,
         )
     }
 }

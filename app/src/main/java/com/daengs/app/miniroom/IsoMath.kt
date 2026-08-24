@@ -70,7 +70,7 @@ object RoomSpec {
      *
      * 가로로는 절대 안 넘친다 — 좌우 벽이 잘리면 방이 잘린 티가 확 난다.
      */
-    const val OVERSCAN = 1.18f
+    const val OVERSCAN = 1.06f
 }
 
 /**
@@ -272,7 +272,10 @@ data class RoomGeometry(
             val left = (widthPx - w) / 2f
             // 세로로 넘치면 **아래를 맞추고 위를 자른다.** 바닥은 물건을 놓는 곳이라
             // 한 줄도 잘리면 안 되고, 벽 위쪽은 몰딩뿐이라 잘려도 아쉽지 않다.
-            val top = if (h > heightPx) heightPx - h else (heightPx - h) / 2f
+            //
+            // 남을 때도 가운데가 아니라 **아래쪽에 붙인다**(0.85). 위에는 오늘 카드가
+            // 겹쳐 있어서 여백이 위에 있어야 덜 답답하고, 방도 손에 가까워진다.
+            val top = if (h > heightPx) heightPx - h else (heightPx - h) * 0.85f
             return RoomGeometry(Rect(left, top, left + w, top + h), s)
         }
 

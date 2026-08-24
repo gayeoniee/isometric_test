@@ -207,9 +207,11 @@ private fun RoomSection(
             InventoryButton(open = inventoryOpen, onClick = onToggleInventory)
         }
 
+        // 아래 한가운데에 두면 방의 앞쪽 바닥을 가려서, 방을 아래로 당길 수가 없었다.
+        // 오른쪽 끝으로 보내면 바닥 앞모서리가 통째로 드러난다.
         NamePlate(
             label = HomeDemoData.ROOM_LABEL,
-            modifier = Modifier.align(Alignment.BottomCenter).offset(y = (-2).dp),
+            modifier = Modifier.align(Alignment.BottomEnd).padding(end = 12.dp, bottom = 4.dp),
         )
 
         // 선택된 가구 위에 뜨는 버튼. 캔버스가 아니라 오버레이라 터치·그림자가 공짜다.

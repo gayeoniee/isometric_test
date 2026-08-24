@@ -114,10 +114,10 @@ fun NamePlate(label: String, modifier: Modifier = Modifier) {
         modifier = modifier.shadow(4.dp, RoundedCornerShape(11.dp), clip = false),
     ) {
         Row(
-            Modifier.padding(horizontal = 20.dp, vertical = 7.dp),
+            Modifier.padding(horizontal = 13.dp, vertical = 5.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(label, color = TextDark, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+            Text(label, color = TextDark, fontWeight = FontWeight.Bold, fontSize = 13.sp)
             Spacer(Modifier.width(6.dp))
             DaengsIconView(DaengsIcon.Heart, Modifier.size(13.dp), tint = DaengPink)
         }
