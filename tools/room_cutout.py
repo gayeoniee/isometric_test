@@ -25,9 +25,15 @@
 
   1. **엄격한 flood** — 바탕색과 거의 같은 픽셀만 따라간다. 방 근처의 그림자에서
      멈추므로 방 안은 절대 안 건드린다
-  2. **그림자만 벗겨내기** — 1번이 남긴 경계에서 안쪽으로, **바탕보다 어두운**
-     픽셀만 한 겹씩 먹어 들어간다. 방의 테두리(크림색 몰딩·바닥 가장자리)는
-     바탕보다 **밝아서** 여기서 저절로 멈춘다
+  2. **그림자만 벗겨내기** — 1번이 남긴 경계에서 안쪽으로 한 겹씩 먹어 들어간다.
+     조건은 "어두운가"가 **아니라** "바탕색이 어두워진 것인가"다.
+
+     처음엔 그냥 "바탕보다 어두우면 그림자"로 봤다가 **방의 왼쪽 벽 바깥면을 갉아
+     먹었다.** 그 면은 그늘져서 바탕보다 어둡지만 회색빛이라 그림자가 아니다.
+     결과는 벽 모서리가 희끗희끗 반투명해지는 것이었다.
+
+     그래서 색조까지 본다. 그림자는 바탕색에 밝기만 곱한 것이므로
+     `픽셀 ~= 바탕색 x k` 가 성립한다. 회색빛 벽면은 이 식에서 크게 벗어난다.
 
 그림자는 지우지 않고 반투명 검정으로 바꿔 남긴다. 통째로 지우면 방이 허공에 뜬다.
 
@@ -49,8 +55,11 @@ TOLERANCE = 26
 # 그림자로 인정할 최대 어두움. 알파를 이 값으로 정규화한다.
 SHADOW_DEPTH = 70
 
-# 그림자를 벗겨낼 최대 두께(px). 폭주 방지용 상한이고 보통 그 전에 멈춘다.
-SHADOW_MAX_PEEL = 40
+# 그림자를 벗겨낼 최대 두께(px). 그림자는 얇게 깔리므로 이 정도면 넉넉하다.
+SHADOW_MAX_PEEL = 10
+
+# "바탕색이 어두워진 것"으로 볼 색 오차. 넉넉하면 벽면까지 먹는다.
+SHADE_TOLERANCE = 16
 
 # 그림자 최대 진하기. 1.0 이면 원본만큼 진해져서 배경이 밝을 때 튄다.
 SHADOW_ALPHA = 0.55
@@ -67,7 +76,7 @@ def cutout(src_path: str, dst_path: str) -> None:
     base_luma = luma(base)
 
     outside = flood_from_border(pixels, width, height, base)
-    shadow = peel_shadow(pixels, width, height, outside, base_luma)
+    shadow = peel_shadow(pixels, width, height, outside, base)
 
     cleared = 0
     shaded = 0
@@ -88,12 +97,12 @@ def cutout(src_path: str, dst_path: str) -> None:
     print(f"바탕색 {base}  ->  투명 {cleared:,}px, 그림자 {shaded:,}px")
 
 
-def peel_shadow(pixels, width, height, outside, base_luma):
+def peel_shadow(pixels, width, height, outside, base):
     """
-    바깥 경계에서 안쪽으로 **바탕보다 어두운 픽셀**만 한 겹씩 벗겨낸다.
+    바깥 경계에서 안쪽으로 **바탕색이 어두워진 픽셀**만 한 겹씩 벗겨낸다.
 
-    방의 테두리는 크림색 몰딩이라 바탕보다 밝다 — 그래서 여기서 저절로 멈춘다.
-    [SHADOW_MAX_PEEL] 은 폭주 방지용 상한이고, 보통 그 전에 멈춘다.
+    "어두우면 그림자"로 보면 안 된다 — 방의 왼쪽 벽 바깥면도 그늘져서 어둡다.
+    거기까지 먹으면 벽 모서리가 희끗희끗 반투명해진다. [is_shade_of] 참조.
     """
     shadow = bytearray(width * height)
     frontier = [
@@ -113,7 +122,7 @@ def peel_shadow(pixels, width, height, outside, base_luma):
                 if outside[i] or shadow[i]:
                     continue
                 r, g, b, _ = pixels[nx, ny]
-                if luma((r, g, b)) >= base_luma:      # 방 쪽 밝은 테두리 -> 멈춤
+                if not is_shade_of(( r, g, b), base):
                     continue
                 shadow[i] = 1
                 nxt.append((nx, ny))
@@ -121,6 +130,21 @@ def peel_shadow(pixels, width, height, outside, base_luma):
             break
         frontier = nxt
     return shadow
+
+
+def is_shade_of(rgb, base) -> bool:
+    """
+    [rgb] 가 [base] 에 밝기만 곱한 색인가 — 즉 **그림자인가**.
+
+    그림자는 바탕색을 어둡게 만든 것이라 `픽셀 ~= 바탕 x k` 가 성립한다.
+    회색빛 벽면처럼 색조가 다른 어두움은 이 식에서 크게 벗어나므로 걸러진다.
+    """
+    base_l = luma(base)
+    l = luma(rgb)
+    if l >= base_l or l <= 0:
+        return False
+    k = l / base_l
+    return sum(abs(rgb[i] - base[i] * k) for i in range(3)) <= SHADE_TOLERANCE * 3
 
 
 def luma(rgb) -> float:
