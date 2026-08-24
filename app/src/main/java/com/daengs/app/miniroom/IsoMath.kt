@@ -57,6 +57,20 @@ object RoomSpec {
 
     /** 방의 가로:세로 비율. */
     const val ASPECT = ROOM_PNG_W / ROOM_PNG_H
+
+    /**
+     * 방을 상자에 "딱 맞게" 넣은 것보다 얼마나 더 키울지.
+     *
+     * 방 그림이 세로로 길어서(1122x1402) 가로로 넓은 상자에 통째로 넣으면 **높이에
+     * 먼저 걸려** 좌우에 큰 여백이 남는다. 화면 폭의 3분의 2밖에 못 쓴다.
+     *
+     * 1 을 넘기면 위아래가 잘리는데, **잘리는 쪽은 위(천장 쪽)로 몰아둔다**.
+     * 바닥과 울타리는 물건을 놓는 곳이라 한 줄도 잘리면 안 되고, 벽 위쪽은
+     * 몰딩뿐이라 잘려도 아쉽지 않다.
+     *
+     * 가로로는 절대 안 넘친다 — 좌우 벽이 잘리면 방이 잘린 티가 확 난다.
+     */
+    const val OVERSCAN = 1.18f
 }
 
 /**
@@ -250,11 +264,15 @@ data class RoomGeometry(
          * 가로·세로 중 더 빡빡한 쪽으로 맞추므로 화면이 좁으면 알아서 작아진다.
          */
         fun of(widthPx: Float, heightPx: Float): RoomGeometry {
-            val s = min(widthPx / RoomSpec.ROOM_PNG_W, heightPx / RoomSpec.ROOM_PNG_H)
+            val contain = min(widthPx / RoomSpec.ROOM_PNG_W, heightPx / RoomSpec.ROOM_PNG_H)
+            // 가로로 넘치는 건 막는다. 좌우 벽이 잘리면 방이 잘린 티가 확 난다
+            val s = min(contain * RoomSpec.OVERSCAN, widthPx / RoomSpec.ROOM_PNG_W)
             val w = RoomSpec.ROOM_PNG_W * s
             val h = RoomSpec.ROOM_PNG_H * s
             val left = (widthPx - w) / 2f
-            val top = (heightPx - h) / 2f
+            // 세로로 넘치면 **아래를 맞추고 위를 자른다.** 바닥은 물건을 놓는 곳이라
+            // 한 줄도 잘리면 안 되고, 벽 위쪽은 몰딩뿐이라 잘려도 아쉽지 않다.
+            val top = if (h > heightPx) heightPx - h else (heightPx - h) / 2f
             return RoomGeometry(Rect(left, top, left + w, top + h), s)
         }
 
