@@ -12,6 +12,7 @@ import androidx.compose.ui.res.imageResource
 import androidx.compose.ui.unit.IntSize
 import com.daengs.app.R
 import com.daengs.app.miniroom.ItemIds
+import com.daengs.app.miniroom.RoomSpec
 import com.daengs.app.miniroom.RoomTheme
 import com.daengs.app.miniroom.sprite.SpriteSheet
 import com.daengs.app.ui.theme.RoomPalette
@@ -94,27 +95,35 @@ fun itemSpecs(theme: RoomTheme): Map<String, ItemArtSpec> =
 /**
  * 강아지. 저쪽 워크 시트를 그대로 쓴다.
  *
- * 시트는 2328x568 짜리 가로 4칸이라 한 프레임이 582x568 이다. 화면에서는 저쪽
- * `visualWidth 13.5%` 를 따라 1122 x 0.135 = 151.5 px 폭으로 그린다.
- * 견종이 늘어도 규격이 같으므로 [DogBreed] 표에 줄만 추가하면 된다.
+ * 시트는 2328x568 짜리 가로 4칸이라 한 프레임이 582x568 이다. 규격은 같지만
+ * **덩치는 견종마다 다르다** — 폭은 [DogBreed.visualWidth] 가 정한다. 한때 전부
+ * 13.5% 로 통일했다가 치와와와 허스키가 같은 크기로 서는 꼴을 봤다.
+ *
+ * 높이는 시트 비율(568/582)로 따라간다. 프레임을 통째로 그리는 것이라 여기서
+ * 세로를 따로 정하면 그림이 늘어난다.
  */
-private fun dogSpec(breed: DogBreed) = ItemArtSpec.Sheet(
+private fun dogSpec(breed: DogBreed): ItemArtSpec.Sheet {
+    val w = breed.visualWidth / 100f * RoomSpec.ROOM_PNG_W
+    val h = w * DOG_FRAME_H / DOG_FRAME_W
+    return ItemArtSpec.Sheet(
     box = ArtBox(
-        size = Size(DOG_W, DOG_H),
-        anchor = Offset(DOG_W * 0.5f, DOG_H * 0.94f),
+        size = Size(w, h),
+        anchor = Offset(w * 0.5f, h * 0.94f),
     ),
     movable = false,
     resId = breed.sheetRes,
-    frameWidth = 582,
-    frameHeight = 568,
+    frameWidth = DOG_FRAME_W.toInt(),
+    frameHeight = DOG_FRAME_H.toInt(),
     columns = 4,
     frameCount = 4,
     fps = 5,
     filterQuality = FilterQuality.None,
-) { frame -> drawDogBreed(breed, frame) }
+    ) { frame -> drawDogBreed(breed, frame) }
+}
 
-private const val DOG_W = 151.5f
-private const val DOG_H = 147.8f
+/** 워크 시트 한 프레임의 원본 크기. 전 견종 공통이다. */
+private const val DOG_FRAME_W = 582f
+private const val DOG_FRAME_H = 568f
 
 /** 사람이 읽는 이름. 인벤토리 목록에서 쓴다. */
 val ItemLabels: Map<String, String> = mapOf(

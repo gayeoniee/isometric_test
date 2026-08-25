@@ -1,0 +1,86 @@
+package com.daengs.app.miniroom
+
+import com.daengs.app.miniroom.art.DogBreed
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+/**
+ * 견종마다 **고유한 덩치**를 갖는가.
+ *
+ * 저쪽 에셋을 옮길 때 시트 규격(582x568)이 전 견종 같다는 이유로 화면 크기까지
+ * 하나(13.5%)로 통일한 적이 있다. 그러면 치와와와 시베리안 허스키가 같은 크기로
+ * 서고, 방 안에 여러 견종이 있다는 게 눈에 안 들어온다.
+ *
+ * 값의 출처는 저쪽 `ui-experiments/main-screen/drafts/dog-presets.js` 다.
+ * 그 표가 갱신되면 여기 숫자도 같이 고친다.
+ */
+class DogBreedPresetTest {
+
+    /** 12 격자 / 16 격자. 칸 단위 값은 이만큼 작아진다. */
+    private val ratio = RoomSpec.GRID / 16f
+
+    @Test
+    fun `견종마다 크기가 다르다`() {
+        val widths = DogBreed.ALL.map { it.visualWidth }.toSet()
+        assertTrue("전 견종이 같은 폭이면 견종 구분이 안 된다", widths.size > 1)
+        assertEquals("가장 작은 견종은 치와와", 9.5f, DogBreed.ALL.minOf { it.visualWidth }, 0.001f)
+        assertEquals(
+            "가장 큰 견종은 래브라도",
+            16.5f,
+            DogBreed.ALL.maxOf { it.visualWidth },
+            0.001f,
+        )
+    }
+
+    /**
+     * 크기 차이가 눈에 보일 만큼은 되는가. 1.5 배는 방 안에서 확실히 구분되는 폭이다.
+     * 값이 조금씩만 다르면 "고쳤다"고 착각하면서 사실상 통일된 것과 같아진다.
+     */
+    @Test
+    fun `가장 큰 견종은 가장 작은 견종의 한배 반이 넘는다`() {
+        val small = DogBreed.ALL.minOf { it.visualWidth }
+        val big = DogBreed.ALL.maxOf { it.visualWidth }
+        assertTrue("$big / $small 배밖에 안 된다", big / small > 1.5f)
+    }
+
+    /** 칸 단위 값은 우리 격자로 환산돼야 한다. 안 하면 저쪽 격자 기준이라 1.33 배 커진다. */
+    @Test
+    fun `반경과 속도는 우리 격자로 환산된다`() {
+        assertEquals(0.42f * ratio, DogBreed.CHIHUAHUA.bodyRadius, 0.0001f)
+        assertEquals(0.61f * ratio, DogBreed.CHIHUAHUA.speed, 0.0001f)
+        assertEquals(0.75f * ratio, DogBreed.LABRADOR_RETRIEVER.bodyRadius, 0.0001f)
+        assertEquals(0.48f * ratio, DogBreed.LABRADOR_RETRIEVER.speed, 0.0001f)
+    }
+
+    /**
+     * 몸 반경은 보이는 크기와 **따로 논다.**
+     *
+     * 털이 부푼 견종(비숑·포메)은 실루엣이 커도 부딪히는 몸은 그만큼 크지 않다.
+     * 저쪽이 두 값을 나눠 둔 이유이고, 한쪽에서 다른 쪽을 계산해내면 안 된다.
+     */
+    @Test
+    fun `털이 부푼 견종은 덩치보다 반경이 작다`() {
+        // 포메(11.5%)와 퍼그(11.5%)는 폭이 같지만 반경이 다르다
+        assertEquals(DogBreed.POMERANIAN.visualWidth, DogBreed.PUG.visualWidth, 0.001f)
+        assertTrue(
+            "폭이 같아도 반경까지 같으면 폭에서 반경을 계산하고 있는 것이다",
+            DogBreed.POMERANIAN.bodyRadius < DogBreed.PUG.bodyRadius,
+        )
+    }
+
+    /**
+     * 가장 큰 반경이 [DogHerd.MIN_DOG_GAP] 안에 들어오는가.
+     *
+     * 목적지 간격은 견종과 무관하게 하나다. 가장 큰 개 둘이 서로의 목적지에 서도
+     * 겹치지 않아야 그 간격이 뜻을 갖는다.
+     */
+    @Test
+    fun `가장 큰 개 둘이 목적지 간격 안에서 안 겹친다`() {
+        val biggest = DogBreed.ALL.maxOf { it.bodyRadius }
+        assertTrue(
+            "반경 $biggest 둘이면 ${biggest * 2} 인데 간격이 ${DogHerd.MIN_DOG_GAP} 다",
+            biggest * 2f < DogHerd.MIN_DOG_GAP,
+        )
+    }
+}

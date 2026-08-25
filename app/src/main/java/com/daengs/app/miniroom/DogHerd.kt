@@ -32,8 +32,6 @@ class DogActor(
      * 나중에 새끼 강아지 같은 걸 넣을 때 여기만 건드리면 되기 때문이다.
      */
     val sizeScale: Float,
-    /** 격자 단위/초 */
-    val speed: Float,
     /**
      * 대기 동작 시계를 마리마다 밀어주는 값(ms).
      *
@@ -42,6 +40,15 @@ class DogActor(
      */
     val animOffsetMs: Long,
 ) {
+    /**
+     * 걷는 속도(격자 단위/초)와 몸 반경. **[breed] 를 따라간다.**
+     *
+     * 생성자 인자로 받지 않는 게 중요하다. 개발자 도구에서 견종을 바꾸면 [breed] 만
+     * 갈리는데, 값을 복사해 뒀으면 허스키로 바꿔도 치와와 속도로 걷는다.
+     */
+    val speed: Float get() = breed.speed
+    val bodyRadius: Float get() = breed.bodyRadius
+
     var pos: Offset = Offset.Zero
     var target: Offset = Offset.Zero
     var restUntil: Long = 0L
@@ -106,7 +113,6 @@ class DogHerd(count: Int, seed: Int = 7) {
             id = i,
             breed = DogBreed.ALL[i % DogBreed.ALL.size],
             sizeScale = 1f,
-            speed = WALK_SPEED,
             // 무작위가 아니라 대기 주기(8프레임 / 6fps ≈ 1333ms)를 마리 수로 나눠 흩는다.
             // 무작위면 둘이 우연히 겹쳐서 여전히 같이 움직이는 판이 나온다.
             animOffsetMs = i * 430L + rnd.nextLong(140),
@@ -160,16 +166,17 @@ class DogHerd(count: Int, seed: Int = 7) {
     // 통과하지 못한다** — 규칙을 여기서 새로 정의하지 않는다. 아이템 하나를 flat 으로
     // 바꾸면 배치 점유와 강아지 통행이 같이 따라온다.
 
-    /** 개발자 오버레이와 같은 값을 봐야 해서 [MiniRoomState] 에 두고 여기서 읽는다. */
-    private val bodyRadius = MiniRoomState.DOG_BODY_RADIUS
-
-    private fun blockedAt(x: Float, y: Float, blocked: Set<IntOffset>): Boolean {
+    /**
+     * [radius] 는 마리마다 다르다 ([DogBreed.bodyRadius]). 래브라도가 지나가는 통로를
+     * 치와와 반경으로 재면, 큰 개가 가구를 파고든 채 멈춘다.
+     */
+    private fun blockedAt(x: Float, y: Float, blocked: Set<IntOffset>, radius: Float): Boolean {
         if (blocked.isEmpty()) return false
         // 네 모서리. 가운데 한 점만 보면 모서리가 가구를 파고든다.
         for (dx in -1..1 step 2) {
             for (dy in -1..1 step 2) {
-                val c = floor(x + dx * bodyRadius).toInt()
-                val r = floor(y + dy * bodyRadius).toInt()
+                val c = floor(x + dx * radius).toInt()
+                val r = floor(y + dy * radius).toInt()
                 if (IntOffset(c, r) in blocked) return true
             }
         }
@@ -183,11 +190,11 @@ class DogHerd(count: Int, seed: Int = 7) {
      * 비스듬히 닿는 순간 완전히 멈춰서, 벽에 코를 박고 떠는 것처럼 보인다.
      * 축을 나누면 막힌 축만 버리고 **나머지 축으로 미끄러져** 가구를 타고 돌아간다.
      */
-    private fun slide(from: Offset, to: Offset, blocked: Set<IntOffset>): Offset {
+    private fun slide(from: Offset, to: Offset, blocked: Set<IntOffset>, radius: Float): Offset {
         var x = from.x
         var y = from.y
-        if (!blockedAt(to.x, y, blocked)) x = to.x
-        if (!blockedAt(x, to.y, blocked)) y = to.y
+        if (!blockedAt(to.x, y, blocked, radius)) x = to.x
+        if (!blockedAt(x, to.y, blocked, radius)) y = to.y
         return Offset(x, y)
     }
 
@@ -202,17 +209,18 @@ class DogHerd(count: Int, seed: Int = 7) {
      * 그때 못 찾았다고 멈추면 강아지가 얼어붙는다. 그래서 두 단계로 물러선다 —
      * 먼저 [MIN_DOG_GAP] 을 지키며 찾고, 안 되면 간격을 포기하고 막힌 칸만 피한다.
      *
-     * @param self 자기 자신은 간격 검사에서 뺀다
+     * @param self 자기 자신은 간격 검사에서 빼고, 몸 반경도 이 마리 것으로 잰다
      */
     private fun freeSpot(blocked: Set<IntOffset>, self: DogActor? = null): Offset {
+        val radius = self?.bodyRadius ?: DogBreed.ALL.first().bodyRadius
         repeat(12) {
             val p = randomSpot()
-            if (!blockedAt(p.x, p.y, blocked) && farFromOthers(p, self)) return p
+            if (!blockedAt(p.x, p.y, blocked, radius) && farFromOthers(p, self)) return p
         }
         // 간격을 못 지키는 상황 — 막힌 칸만 피한다
         repeat(12) {
             val p = randomSpot()
-            if (!blockedAt(p.x, p.y, blocked)) return p
+            if (!blockedAt(p.x, p.y, blocked, radius)) return p
         }
         return randomSpot()
     }
@@ -256,7 +264,7 @@ class DogHerd(count: Int, seed: Int = 7) {
      * 손가락으로도 책상을 뚫고 지나갈 수 없고, 모서리에서는 미끄러진다.
      */
     fun dragTo(dog: DogActor, desired: Offset, blocked: Set<IntOffset>) {
-        dog.pos = slide(dog.pos, clampToFloor(desired), blocked)
+        dog.pos = slide(dog.pos, clampToFloor(desired), blocked, dog.bodyRadius)
     }
 
     /**
@@ -282,7 +290,7 @@ class DogHerd(count: Int, seed: Int = 7) {
 
             // 처음 자리가 나빴거나, 서 있는 자리에 가구가 놓였다. 충돌을 무시하고
             // 가까운 빈 칸으로 걸어 나온다 — 순간이동시키면 눈에 띄게 튄다.
-            val trapped = blockedAt(d.pos.x, d.pos.y, blocked)
+            val trapped = blockedAt(d.pos.x, d.pos.y, blocked, d.bodyRadius)
             if (trapped) {
                 d.target = nearestFree(d.pos, blocked)
                 d.restUntil = 0L
@@ -304,7 +312,7 @@ class DogHerd(count: Int, seed: Int = 7) {
             val step = d.speed * dt
             val want = clampToFloor(d.pos + delta * (step / dist).coerceAtMost(1f))
             // 갇힌 동안에는 막힘 판정을 끈다. 안 그러면 가구 밑에서 영영 못 나온다.
-            val next = if (trapped) want else slide(d.pos, want, blocked)
+            val next = if (trapped) want else slide(d.pos, want, blocked, d.bodyRadius)
 
             val gained = (next - d.pos).getDistance()
             if (gained < step * 0.2f) {
@@ -346,16 +354,7 @@ class DogHerd(count: Int, seed: Int = 7) {
         dogs.sortedWith(compareBy({ it.depthCell }, { it.pos.x + it.pos.y }))
 
     companion object {
-        /**
-         * 걷는 속도(격자 단위/초).
-         *
-         * 저쪽 목업은 16 격자에서 0.5 였다. 우리는 12 격자라 칸이 1.33 배 크므로
-         * 같은 화면 속도가 되려면 **칸 단위 값은 그만큼 작아야** 한다 (0.5 x 12/16).
-         *
-         * 마리마다 흔들지 않는다. 저쪽은 이 값을 견종 속성으로 두고 있어서,
-         * 나중에 "치와와는 총총, 허스키는 성큼" 같은 걸 하려면 [DogBreed] 로 옮긴다.
-         */
-        const val WALK_SPEED = 0.375f
+        // 걷는 속도는 여기 없다. 견종마다 다르므로 [DogBreed.speed] 가 갖는다.
 
         /** 워크 시트 프레임 속도. 시트가 4프레임이라 초당 1.25 바퀴 돈다. */
         const val WALK_FPS = 5f
@@ -370,12 +369,12 @@ class DogHerd(count: Int, seed: Int = 7) {
         /**
          * 강아지끼리 **목적지를 벌리는** 최소 거리(격자 단위).
          *
-         * 몸 반경([bodyRadius]) 의 세 배쯤. 머리를 키운 뒤(등신 2.2 → 1.7) 실루엣 폭이
-         * 넓어져서, 예전처럼 목적지를 완전 무작위로 뽑으면 둘이 겹친 채 오래 서 있는
-         * 판이 눈에 띄게 늘었다.
+         * 몸 반경([DogBreed.bodyRadius]) 의 세 배쯤. 목적지를 완전 무작위로 뽑으면
+         * 둘이 겹친 채 오래 서 있는 판이 눈에 띄게 늘어난다.
          *
-         * 몸 반경([MiniRoomState.DOG_BODY_RADIUS]) 의 세 배쯤. 격자가 6 에서 12 로
-         * 커지면서 같이 키웠다 — 칸 단위 값이라 격자가 바뀌면 뜻이 달라진다.
+         * 견종마다 반경이 달라도 **간격은 하나로 둔다.** 마리별로 다르게 하면 큰 개가
+         * 고른 자리를 작은 개가 다시 밀어내는 식이라, 자리 고르기가 수렴하지 않는다.
+         * 가장 큰 반경(래브라도 0.5625) 의 두 배보다 넉넉하면 충분하다.
          *
          * 마리 수를 늘릴 거면 여길 같이 봐야 한다. 값이 크고 마리가 많으면
          * [freeSpot] 의 1단계가 매번 실패해서 간격이 사실상 없는 것과 같아진다.

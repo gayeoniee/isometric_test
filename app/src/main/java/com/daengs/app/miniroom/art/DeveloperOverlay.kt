@@ -80,7 +80,7 @@ fun DrawScope.drawDeveloperOverlay(
         val p = g.toScreenF(dog.pos.x, dog.pos.y)
         drawCircle(DogMark, 4f, p)
         // 몸 반경 — 가구를 피하는 실제 크기다
-        val edge = g.toScreenF(dog.pos.x + MiniRoomState.DOG_BODY_RADIUS, dog.pos.y)
+        val edge = g.toScreenF(dog.pos.x + dog.bodyRadius, dog.pos.y)
         drawCircle(DogMark, (edge - p).getDistance(), p, style = Stroke(1f))
     }
 

@@ -7,6 +7,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import com.daengs.app.R
+import com.daengs.app.miniroom.RoomSpec
 
 // ---------------------------------------------------------------------------
 // 강아지 — **PNG 스프라이트 시트**
@@ -46,11 +47,20 @@ data class DogCoat(
 }
 
 /**
- * 견종 하나 = 워크 시트 한 장.
+ * 견종 하나 = 워크 시트 한 장 + **그 견종만의 덩치·속도**.
  *
  * 시트는 전부 2328x568 짜리 가로 4프레임이라 규격이 같다. 그래서 견종을 늘리는 일이
  * **표에 한 줄 넣는 것**으로 끝난다 — 도형을 조립하던 시절에는 털결·귀·꼬리 축을
  * 일일이 골라야 했다.
+ *
+ * 규격이 같다고 **덩치까지 같은 건 아니다.** 처음 옮길 때 전 견종을 폭 13.5% 하나로
+ * 통일했더니 치와와와 시베리안 허스키가 같은 크기로 섰다. 저쪽
+ * (`ui-experiments/main-screen/drafts/dog-presets.js`) 은 견종마다 세 값을 따로
+ * 잡아두고 있어서 그대로 가져왔다 — 보이는 크기, 바닥에서 차지하는 반경, 걷는 속도.
+ *
+ * 반경과 속도는 **칸 단위**라 격자 수가 다르면 뜻이 달라진다. 저쪽은 16 격자, 우리는
+ * 12 격자다. 원본 값을 그대로 적어두고 읽을 때 환산하는 이유는, 저쪽 표가 갱신되면
+ * 숫자를 그대로 덮어쓰면 되기 때문이다.
  *
  * [id] 가 그대로 카탈로그 키다 ([ItemCatalog] 가 `DogBreed.ALL` 로 자동 등록한다).
  */
@@ -59,25 +69,124 @@ enum class DogBreed(
     val id: String,
     val label: String,
     @DrawableRes val sheetRes: Int,
+    /**
+     * 화면에 그릴 폭. **방 그림 폭 대비 %.**
+     *
+     * 시트 규격(582x568)은 견종이 같아도 그려진 덩치는 제각각이라, 같은 폭으로
+     * 그리면 치와와와 허스키가 같은 크기가 된다. 저쪽이 견종마다 잡아둔 값이다.
+     */
+    val visualWidth: Float,
+    /** 저쪽 `bodyRadius`. **저쪽 격자(16) 칸 단위** — 쓸 때는 [bodyRadius] 로 환산한다. */
+    private val refBodyRadius: Float,
+    /** 저쪽 `speed`. **저쪽 격자(16) 칸/초** — 쓸 때는 [speed] 로 환산한다. */
+    private val refSpeed: Float,
 ) {
-    TOY_POODLE("dog_toy_poodle", "토이푸들", R.drawable.dog_toy_poodle),
-    BEAGLE("dog_beagle", "비글", R.drawable.dog_beagle),
-    BICHON_FRISE("dog_bichon_frise", "비숑프리제", R.drawable.dog_bichon_frise),
-    BORDER_COLLIE("dog_border_collie", "보더콜리", R.drawable.dog_border_collie),
-    CHIHUAHUA("dog_chihuahua", "치와와", R.drawable.dog_chihuahua),
-    FRENCH_BULLDOG("dog_french_bulldog", "프렌치불독", R.drawable.dog_french_bulldog),
-    JINDO("dog_jindo", "진돗개", R.drawable.dog_jindo),
-    LABRADOR_RETRIEVER("dog_labrador_retriever", "래브라도 리트리버", R.drawable.dog_labrador_retriever),
-    MALTESE("dog_maltese", "말티즈", R.drawable.dog_maltese),
-    POMERANIAN("dog_pomeranian", "포메라니안", R.drawable.dog_pomeranian),
-    PUG("dog_pug", "퍼그", R.drawable.dog_pug),
-    SCHNAUZER("dog_schnauzer", "슈나우저", R.drawable.dog_schnauzer),
-    SHIBA_INU("dog_shiba_inu", "시바견", R.drawable.dog_shiba_inu),
-    SIBERIAN_HUSKY("dog_siberian_husky", "시베리안 허스키", R.drawable.dog_siberian_husky),
-    WELSH_CORGI("dog_welsh_corgi", "웰시코기", R.drawable.dog_welsh_corgi),
-    YORKSHIRE_TERRIER("dog_yorkshire_terrier", "요크셔테리어", R.drawable.dog_yorkshire_terrier);
+
+    TOY_POODLE(
+        "dog_toy_poodle", "토이푸들", R.drawable.dog_toy_poodle,
+        visualWidth = 12.0f, refBodyRadius = 0.5f, refSpeed = 0.5f,
+    ),
+
+    BEAGLE(
+        "dog_beagle", "비글", R.drawable.dog_beagle,
+        visualWidth = 13.0f, refBodyRadius = 0.58f, refSpeed = 0.54f,
+    ),
+
+    BICHON_FRISE(
+        "dog_bichon_frise", "비숑프리제", R.drawable.dog_bichon_frise,
+        visualWidth = 11.5f, refBodyRadius = 0.48f, refSpeed = 0.52f,
+    ),
+
+    BORDER_COLLIE(
+        "dog_border_collie", "보더콜리", R.drawable.dog_border_collie,
+        visualWidth = 15.5f, refBodyRadius = 0.68f, refSpeed = 0.59f,
+    ),
+
+    CHIHUAHUA(
+        "dog_chihuahua", "치와와", R.drawable.dog_chihuahua,
+        visualWidth = 9.5f, refBodyRadius = 0.42f, refSpeed = 0.61f,
+    ),
+
+    FRENCH_BULLDOG(
+        "dog_french_bulldog", "프렌치불독", R.drawable.dog_french_bulldog,
+        visualWidth = 12.0f, refBodyRadius = 0.55f, refSpeed = 0.47f,
+    ),
+
+    JINDO(
+        "dog_jindo", "진돗개", R.drawable.dog_jindo,
+        visualWidth = 14.5f, refBodyRadius = 0.64f, refSpeed = 0.54f,
+    ),
+
+    LABRADOR_RETRIEVER(
+        "dog_labrador_retriever", "래브라도 리트리버", R.drawable.dog_labrador_retriever,
+        visualWidth = 16.5f, refBodyRadius = 0.75f, refSpeed = 0.48f,
+    ),
+
+    MALTESE(
+        "dog_maltese", "말티즈", R.drawable.dog_maltese,
+        visualWidth = 11.0f, refBodyRadius = 0.46f, refSpeed = 0.53f,
+    ),
+
+    POMERANIAN(
+        "dog_pomeranian", "포메라니안", R.drawable.dog_pomeranian,
+        visualWidth = 11.5f, refBodyRadius = 0.46f, refSpeed = 0.57f,
+    ),
+
+    PUG(
+        "dog_pug", "퍼그", R.drawable.dog_pug,
+        visualWidth = 11.5f, refBodyRadius = 0.52f, refSpeed = 0.47f,
+    ),
+
+    SCHNAUZER(
+        "dog_schnauzer", "슈나우저", R.drawable.dog_schnauzer,
+        visualWidth = 12.5f, refBodyRadius = 0.54f, refSpeed = 0.52f,
+    ),
+
+    SHIBA_INU(
+        "dog_shiba_inu", "시바견", R.drawable.dog_shiba_inu,
+        visualWidth = 13.5f, refBodyRadius = 0.59f, refSpeed = 0.56f,
+    ),
+
+    SIBERIAN_HUSKY(
+        "dog_siberian_husky", "시베리안 허스키", R.drawable.dog_siberian_husky,
+        visualWidth = 16.0f, refBodyRadius = 0.72f, refSpeed = 0.52f,
+    ),
+
+    WELSH_CORGI(
+        "dog_welsh_corgi", "웰시코기", R.drawable.dog_welsh_corgi,
+        visualWidth = 13.5f, refBodyRadius = 0.62f, refSpeed = 0.54f,
+    ),
+
+    YORKSHIRE_TERRIER(
+        "dog_yorkshire_terrier", "요크셔테리어", R.drawable.dog_yorkshire_terrier,
+        visualWidth = 10.5f, refBodyRadius = 0.45f, refSpeed = 0.57f,
+    );
+
+    /**
+     * 바닥에서 차지하는 반경(우리 격자 칸 단위).
+     *
+     * 보이는 크기와 **따로 논다.** 비숑처럼 털이 부푼 견종은 실루엣이 커도 실제로
+     * 부딪히는 몸은 그만큼 크지 않다. 저쪽이 두 값을 나눠 둔 이유다.
+     *
+     * 발끝 한 점만 검사하면 몸통이 가구에 반쯤 파묻힌 채 멈춘다. 그렇다고 크게
+     * 잡으면 가구 사이를 못 지나간다 — 통로가 이 값의 두 배보다 넓어야 한다.
+     */
+    val bodyRadius: Float get() = refBodyRadius * GRID_RATIO
+
+    /** 걷는 속도(우리 격자 칸/초). 치와와는 총총, 래브라도는 느긋하다. */
+    val speed: Float get() = refSpeed * GRID_RATIO
 
     companion object {
+        /**
+         * 저쪽 격자 수. 칸 단위 값을 우리 격자로 옮길 때 쓴다.
+         *
+         * 우리 칸이 1.33 배 크므로 같은 몸집·같은 화면 속도가 되려면
+         * **칸 단위 값은 그만큼 작아야** 한다.
+         */
+        private const val REF_GRID = 16f
+
+        private val GRID_RATIO = RoomSpec.GRID / REF_GRID
+
         val ALL: List<DogBreed> = entries
 
         private val index = entries.associateBy { it.id }
