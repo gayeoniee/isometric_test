@@ -33,7 +33,13 @@ data class RoomTheme(
     @DrawableRes val cabinet: Int,
     @DrawableRes val basket: Int,
     @DrawableRes val bowls: Int,
-    /** 인벤토리 미리보기용 색 세 개. 방 그림을 축소해 보여주는 것보다 알아보기 쉽다. */
+    /**
+     * 인벤토리 미리보기용 색 세 개. 방 그림을 축소해 보여주는 것보다 알아보기 쉽다.
+     *
+     * **그림에서 뽑은 값이다.** 저쪽 README 의 팔레트 표를 그대로 적어뒀더니, 저쪽이
+     * 마룻바닥까지 테마 색으로 다시 칠했을 때 표만 옛 값으로 남아 미리보기의 바닥이
+     * 실제 방과 달라졌다. 방 그림이 갱신되면 여기도 다시 뽑는다.
+     */
     val swatchWall: Color,
     val swatchFloor: Color,
     val swatchAccent: Color,
@@ -94,7 +100,7 @@ data class RoomTheme(
             basket = R.drawable.theme_cherry_blossom_basket,
             bowls = R.drawable.theme_cherry_blossom_bowls,
             swatchWall = Color(0xFFF4D7DF),
-            swatchFloor = Color(0xFFC9958E),
+            swatchFloor = Color(0xFFDBACB5),
             swatchAccent = Color(0xFFA95E76),
         )
 
@@ -111,7 +117,7 @@ data class RoomTheme(
             basket = R.drawable.theme_mint_basket,
             bowls = R.drawable.theme_mint_bowls,
             swatchWall = Color(0xFFD8EFE5),
-            swatchFloor = Color(0xFFC4B69A),
+            swatchFloor = Color(0xFFB1D2C0),
             swatchAccent = Color(0xFF5F9D85),
         )
 
@@ -128,7 +134,7 @@ data class RoomTheme(
             basket = R.drawable.theme_lavender_basket,
             bowls = R.drawable.theme_lavender_bowls,
             swatchWall = Color(0xFFE7DCF2),
-            swatchFloor = Color(0xFFB9A6B8),
+            swatchFloor = Color(0xFFBFB3D5),
             swatchAccent = Color(0xFF79629A),
         )
 
@@ -145,7 +151,7 @@ data class RoomTheme(
             basket = R.drawable.theme_sky_blue_basket,
             bowls = R.drawable.theme_sky_blue_bowls,
             swatchWall = Color(0xFFDCEEF7),
-            swatchFloor = Color(0xFFB6B8B1),
+            swatchFloor = Color(0xFFAED1E8),
             swatchAccent = Color(0xFF4F83AA),
         )
 
@@ -162,7 +168,7 @@ data class RoomTheme(
             basket = R.drawable.theme_butter_basket,
             bowls = R.drawable.theme_butter_bowls,
             swatchWall = Color(0xFFFFF0BD),
-            swatchFloor = Color(0xFFD3A866),
+            swatchFloor = Color(0xFFE0C57E),
             swatchAccent = Color(0xFFB68737),
         )
 
