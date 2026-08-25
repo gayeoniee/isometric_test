@@ -6,12 +6,17 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import com.daengs.app.miniroom.RoomGeometry
 import com.daengs.app.miniroom.RoomSpec
+import kotlin.math.PI
+import kotlin.math.cos
 import kotlin.math.roundToInt
+import kotlin.math.sin
 
 // ---------------------------------------------------------------------------
 // 방 껍데기 — **그림 한 장**
@@ -49,11 +54,26 @@ fun DrawScope.drawRoomBackground(g: RoomGeometry, room: ImageBitmap) {
  * 값은 1122x1402 원본에서 올리브색 문짝의 경계를 찾아 재고 백분율로 환산했다.
  */
 object DoorSpec {
-    /** 문짝(초록 부분). 여닫는 대상이자 터치 판정 영역이다. */
-    val leaf = Rect(left = 5.97f, top = 38.4f, right = 18.81f, bottom = 65.9f)
+    /**
+     * 문짝(초록 부분)을 감싸는 사각형. 여닫는 대상이자 터치 판정 영역이다.
+     *
+     * **사각형은 문짝보다 크다.** 문이 아치라 위 모서리가 남고, 밑변이 비스듬해
+     * 오른쪽 아래도 남는다. 남는 자리는 벽이므로 그릴 때는 [SHEAR] 를 반영한
+     * 아치로 잘라내야 한다 — 안 자르면 벽 조각이 문짝에 딸려 움직인다.
+     */
+    val leaf = Rect(left = 6.77f, top = 39.02f, right = 17.83f, bottom = 66.05f)
 
     /** 문틀까지 포함한 범위. 터치를 조금 너그럽게 받으려고 쓴다. */
-    val frame = Rect(left = 4.3f, top = 36.4f, right = 20.1f, bottom = 67.7f)
+    val frame = Rect(left = 5.2f, top = 37.0f, right = 19.3f, bottom = 67.5f)
+
+    /**
+     * 문이 붙은 벽이 뒤로 물러나면서 **오른쪽이 올라간 정도**. 문짝 높이 대비 비율.
+     *
+     * 그림에서 문 밑변을 재보면 왼쪽 66.05%, 오른쪽 62.77% 로 3.28%p 차이가 난다.
+     * 아치 윗변도 같은 만큼 기울어 있다 — 즉 대칭 아치를 세로로 밀어놓은 모양이다.
+     * 이 값을 빼먹으면 문짝 오른쪽 아래에 벽 삼각형이 딸려나온다.
+     */
+    const val SHEAR = -0.121f
 
     /**
      * 경첩이 어느 쪽인가. 그림에서 손잡이가 **왼쪽**에 있으므로 경첩은 오른쪽이다.
@@ -101,20 +121,64 @@ fun DrawScope.drawDoorOpening(g: RoomGeometry, room: ImageBitmap, open: Float) {
     val dst = DoorSpec.rectOf(g, DoorSpec.leaf)
     val src = DoorSpec.leafSourcePx(room)
 
-    // 1) 문간. 안쪽이 비쳐야 문이 "열렸다"로 읽힌다
-    drawRect(DoorwayDark, Offset(dst.left, dst.top), Size(dst.width, dst.height))
+    // 1) 문간. 안쪽이 비쳐야 문이 "열렸다"로 읽힌다.
+    //
+    // **문 모양대로** 칠해야 한다. 네모로 칠했더니 문짝 위 모서리의 벽까지 덮여서
+    // 검은 사각형이 붙은 꼴이 됐다 — 스티커가 벗겨진 것처럼 보였다.
+    drawPath(doorPath(dst), DoorwayDark)
 
-    // 2) 눌린 문짝. 경첩 쪽 가장자리는 제자리에 남는다
-    val w = dst.width * (1f - open * (1f - DoorSpec.OPEN_MIN_W))
+    // 2) 눌린 문짝. 경첩 쪽 가장자리는 제자리에 남는다.
+    //
+    // 잘라내기도 **이미지와 똑같이** 눌러야 한다. 눌린 사각형에 아치를 새로 그리면
+    // 아치가 시작되는 높이가 폭을 따라 올라가버려서, 실제 문짝보다 위까지 열린다.
+    // 그 틈으로 벽이 비친다.
+    val squeeze = 1f - open * (1f - DoorSpec.OPEN_MIN_W)
+    val w = dst.width * squeeze
     val left = if (DoorSpec.HINGE_RIGHT) dst.right - w else dst.left
-    drawImage(
-        image = room,
-        srcOffset = IntOffset(src.left.roundToInt(), src.top.roundToInt()),
-        srcSize = IntSize(src.width.roundToInt(), src.height.roundToInt()),
-        dstOffset = IntOffset(left.roundToInt(), dst.top.roundToInt()),
-        dstSize = IntSize(w.roundToInt().coerceAtLeast(1), dst.height.roundToInt()),
-        filterQuality = FilterQuality.None,
-    )
+    clipPath(doorPath(dst, squeeze)) {
+        drawImage(
+            image = room,
+            srcOffset = IntOffset(src.left.roundToInt(), src.top.roundToInt()),
+            srcSize = IntSize(src.width.roundToInt(), src.height.roundToInt()),
+            dstOffset = IntOffset(left.roundToInt(), dst.top.roundToInt()),
+            dstSize = IntSize(w.roundToInt().coerceAtLeast(1), dst.height.roundToInt()),
+            filterQuality = FilterQuality.None,
+        )
+    }
+}
+
+/**
+ * 문짝 실루엣 — **기울어진 아치**. 반원 천장에 비스듬한 밑변.
+ *
+ * 문을 네모로 다루면 두 군데서 벽이 딸려온다. 위 모서리(아치 바깥)와 오른쪽
+ * 아래(밑변이 비스듬해서). 그 벽 조각이 검게 칠해지거나 문짝과 함께 움직이면
+ * 스티커가 벗겨지는 것처럼 보인다.
+ *
+ * [squeeze] 는 문이 열리며 눌린 가로 비율이다. 모양을 **원래 크기로 그린 다음**
+ * 경첩 쪽으로 x 만 줄인다 — 세로는 건드리지 않는다. 이미지도 똑같이 눌리므로
+ * 두 실루엣이 정확히 겹친다. 눌린 사각형에 아치를 새로 그리면 아치가 시작되는
+ * 높이까지 따라 올라가서 어긋난다.
+ */
+private fun doorPath(r: Rect, squeeze: Float = 1f): Path {
+    val radius = r.width / 2f
+    val spring = r.top + radius          // 아치가 시작되는 높이
+    // 벽이 물러나며 생긴 세로 밀림. 오른쪽으로 갈수록 올라간다
+    fun lift(x: Float) = DoorSpec.SHEAR * r.height * (x - r.left) / r.width
+    val hinge = if (DoorSpec.HINGE_RIGHT) r.right else r.left
+    fun squeezed(x: Float) = hinge + (x - hinge) * squeeze
+
+    return Path().apply {
+        moveTo(squeezed(r.left), r.bottom + lift(r.left))
+        lineTo(squeezed(r.left), spring + lift(r.left))
+        val steps = 24
+        for (i in 0..steps) {
+            val a = PI * (1f - i.toFloat() / steps)      // 왼쪽 → 오른쪽
+            val x = r.left + radius + radius * cos(a).toFloat()
+            lineTo(squeezed(x), spring - radius * sin(a).toFloat() + lift(x))
+        }
+        lineTo(squeezed(r.right), r.bottom + lift(r.right))
+        close()
+    }
 }
 
 /**
@@ -125,12 +189,8 @@ fun DrawScope.drawDoorOpening(g: RoomGeometry, room: ImageBitmap, open: Float) {
  */
 fun DrawScope.drawDoorHint(g: RoomGeometry, pulse: Float) {
     if (pulse <= 0.001f) return
-    val r = DoorSpec.rectOf(g, DoorSpec.leaf)
-    drawRect(
-        Color.White.copy(alpha = 0.10f * pulse),
-        Offset(r.left, r.top),
-        Size(r.width, r.height),
-    )
+    // 여기도 문 모양이다. 네모로 얹으면 문 위 벽이 같이 밝아져서 티가 난다.
+    drawPath(doorPath(DoorSpec.rectOf(g, DoorSpec.leaf)), Color.White.copy(alpha = 0.10f * pulse))
 }
 
 /** 열린 문 너머. 방 그림의 문틀 그늘과 비슷한 톤이라 튀지 않는다. */
