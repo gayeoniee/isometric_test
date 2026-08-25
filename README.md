@@ -2,7 +2,15 @@
 
 반려견 케어 플랫폼. 이 저장소는 **홈 화면과 미니룸**을 담당한다.
 
-기획·결정 사항은 [`CONTEXT.md`](CONTEXT.md) 에 있다. 이 문서는 **돌리는 방법**만 적는다.
+이 문서는 **돌리는 방법**만 적는다. 나머지는 아래로 나뉘어 있다.
+
+| 문서 | 내용 |
+|---|---|
+| [`STATUS.md`](STATUS.md) | **지금 어디까지 됐나** · 다음 결정 · 알려진 문제 |
+| [`HISTORY.md`](HISTORY.md) | 어떻게 여기까지 왔나. 배경지식 없이 읽을 수 있게 쓴 작업 일지 |
+| [`CONTEXT.md`](CONTEXT.md) | 기획·결정 사항 (앱 전체) |
+
+처음이면 **STATUS.md** 부터 보는 게 빠르다.
 
 ---
 
@@ -19,11 +27,15 @@
 ### `local.properties` 는 저장소에 없다
 
 SDK 경로가 사람마다 달라서 `.gitignore` 에 들어 있다. **Android Studio 로 프로젝트를
-열면 자동으로 만들어준다.** 안 만들어지면 최상위에 직접 한 줄 쓴다.
+열면 자동으로 만들어준다.** 터미널에서 `gradlew` 부터 돌리면
+`SDK location not found` 가 나므로, 그때는 최상위에 직접 한 줄 쓴다.
 
 ```properties
-sdk.dir=C\:\\Users\\<이름>\\AppData\\Local\\Android\\Sdk
+sdk.dir=C:/Users/<이름>/AppData/Local/Android/Sdk
 ```
+
+**슬래시(`/`)로 쓰는 게 편하다.** 역슬래시를 쓰면 `C\:\\Users\\...` 처럼 두 번 겹쳐
+써야 하고, 하나라도 틀리면 `java.io.IOException: Invalid file path` 가 난다.
 
 ### 빌드 · 테스트 · 설치
 
