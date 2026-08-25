@@ -61,32 +61,44 @@ object DoorSpec {
      * 문짝을 감싸는 사각형. 여닫는 대상이자 터치 판정 영역이다.
      *
      * **사각형은 문짝보다 크다.** 문이 아치라 위 모서리가 남고, 밑변이 비스듬해
-     * 오른쪽 아래도 남는다. 남는 자리는 벽이므로 그릴 때는 [ARCH_RISE] · [SHEAR] 를
-     * 반영한 실루엣으로 잘라내야 한다.
-     *
-     * top 은 **기울이기 전** 아치 꼭대기다. 그림에서 재면 꼭대기가 39.02% 지만 그건
-     * 이미 기울어진 값이고 여기에 [SHEAR] 를 다시 얹으므로, 41.02% 를 넣는다.
+     * 오른쪽 아래도 남는다. 남는 자리는 벽이므로 그릴 때는 [TOP] · [BOTTOM] 으로
+     * 잘라내야 한다.
      */
-    val leaf = Rect(left = 6.77f, top = 41.02f, right = 17.83f, bottom = 66.05f)
+    val leaf = Rect(left = 6.33f, top = 39.02f, right = 18.54f, bottom = 66.26f)
 
     /** 문틀까지 포함한 범위. 터치를 조금 너그럽게 받으려고 쓴다. */
-    val frame = Rect(left = 5.2f, top = 37.0f, right = 19.3f, bottom = 67.5f)
+    val frame = Rect(left = 5.0f, top = 37.0f, right = 19.9f, bottom = 67.6f)
 
     /**
-     * 문이 붙은 벽이 물러나면서 **오른쪽이 올라간 정도**. 문짝 높이 대비 비율.
+     * 문짝 윤곽 — **그림에서 떠 왔다.** [leaf] 안에서의 위·아래 가장자리를
+     * 가로로 21등분해 잰 값이다. 0 이 [leaf] 위, 1 이 아래.
      *
-     * 그림에서 문 밑변을 재면 왼쪽 66.05%, 오른쪽 62.77% 로 3.28%p 차이가 난다.
-     * 아치 윗변도 같은 만큼 기울어 있다 — 대칭 아치를 세로로 밀어놓은 모양이다.
+     * 아치를 타원으로 어림잡았더니 문보다 볼록해서 양옆이 문 위까지 열렸다.
+     * 실제 아치는 어깨가 완만하고 꼭대기가 살짝 오른쪽이며, 벽이 물러나는 만큼
+     * 전체가 기울어 있다. 식으로 맞추느니 그림을 그대로 재는 편이 정확하다.
+     *
+     * 다시 뜨려면 `tools/trace_door.py` 를 쓴다. 문 색을 밝은 올리브로만 잡으면
+     * 그늘진 아치 꼭대기를 놓친다 — r 과 g 가 비슷하고 파랑이 빠진 것으로 잡는다.
      */
-    const val SHEAR = -0.1307f
+    val TOP = floatArrayOf(
+        0.2435f, 0.1675f, 0.1335f, 0.0995f, 0.0733f, 0.0576f, 0.0445f,
+        0.0314f, 0.0236f, 0.0157f, 0.0079f, 0.0000f, 0.0000f, 0.0026f,
+        0.0026f, 0.0079f, 0.0157f, 0.0288f, 0.0471f, 0.0707f, 0.1073f,
+    )
+
+    val BOTTOM = floatArrayOf(
+        1.0000f, 0.9974f, 0.9921f, 0.9869f, 0.9791f, 0.9738f, 0.9660f,
+        0.9555f, 0.9503f, 0.9450f, 0.9372f, 0.9346f, 0.9267f, 0.9188f,
+        0.9110f, 0.9058f, 0.8979f, 0.8901f, 0.8848f, 0.8770f, 0.8717f,
+    )
 
     /**
-     * 아치가 어깨에서 꼭대기까지 솟은 높이. 문짝 높이 대비 비율.
+     * 밑변이 왼쪽에서 오른쪽으로 기운 정도. 문짝 높이 대비.
      *
-     * 반원(폭의 절반)으로 그렸더니 **문보다 볼록해서** 양옆으로 문 위까지 열렸다.
-     * 실제로는 폭 124px 에 솟음 49px 인 납작한 타원이다.
+     * 문 너머 지평선도 이만큼 기울어야 바닥과 나란해 보인다.
+     * [BOTTOM] 에서 바로 뽑으므로 윤곽을 다시 떠도 저절로 따라온다.
      */
-    const val ARCH_RISE = 0.123f
+    val SHEAR: Float get() = BOTTOM.last() - BOTTOM.first()
 
     /**
      * 문 너머로 보여줄 바깥. **창유리에서 오려 쓴다.**
@@ -212,36 +224,30 @@ fun DrawScope.drawDoorOpening(g: RoomGeometry, room: ImageBitmap, open: Float) {
 }
 
 /**
- * 문짝 실루엣 — **기울어진 납작 아치**.
+ * 문짝 실루엣 — **그림에서 뜬 윤곽**([DoorSpec.TOP] · [DoorSpec.BOTTOM]) 을 잇는다.
  *
  * 문을 네모로 다루면 두 군데서 벽이 딸려온다. 위 모서리(아치 바깥)와 오른쪽
  * 아래(밑변이 비스듬해서). 그 벽 조각이 칠해지거나 문짝과 함께 움직이면
  * 스티커가 벗겨지는 것처럼 보인다.
  *
- * 솟음은 폭의 절반이 아니라 [DoorSpec.ARCH_RISE] 다. 반원으로 그리면 문보다
- * 볼록해서 양옆으로 문 위까지 열린다.
+ * 타원으로 어림잡아도 안 된다. 문보다 볼록해서 양옆이 문 위까지 열린다.
  *
  * [squeeze] 는 열리며 눌린 가로 비율. 모양을 **원래 크기로 그린 다음** 경첩 쪽으로
  * x 만 줄인다 — 세로는 그대로다. 이미지도 그렇게 눌리므로 두 실루엣이 겹친다.
  */
 private fun doorPath(r: Rect, squeeze: Float = 1f): Path {
-    val rx = r.width / 2f
-    val ry = r.height * DoorSpec.ARCH_RISE
-    val spring = r.top + ry                       // 아치 어깨 높이
-    fun lift(x: Float) = DoorSpec.SHEAR * r.height * (x - r.left) / r.width
+    val n = DoorSpec.TOP.size
     val hinge = if (DoorSpec.HINGE_RIGHT) r.right else r.left
-    fun sx(x: Float) = hinge + (x - hinge) * squeeze
+    fun x(i: Int): Float {
+        val at = r.left + r.width * i / (n - 1f)
+        return hinge + (at - hinge) * squeeze
+    }
+    fun y(v: Float) = r.top + r.height * v
 
     return Path().apply {
-        moveTo(sx(r.left), r.bottom + lift(r.left))
-        lineTo(sx(r.left), spring + lift(r.left))
-        val steps = 24
-        for (i in 0..steps) {
-            val a = PI * (1f - i.toFloat() / steps)   // 왼쪽 -> 오른쪽
-            val x = r.left + rx + rx * cos(a).toFloat()
-            lineTo(sx(x), spring - ry * sin(a).toFloat() + lift(x))
-        }
-        lineTo(sx(r.right), r.bottom + lift(r.right))
+        moveTo(x(0), y(DoorSpec.TOP[0]))
+        for (i in 1 until n) lineTo(x(i), y(DoorSpec.TOP[i]))
+        for (i in n - 1 downTo 0) lineTo(x(i), y(DoorSpec.BOTTOM[i]))
         close()
     }
 }
