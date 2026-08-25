@@ -69,6 +69,8 @@ the transparent silhouettes of their source assets" 라고 적어뒀다). 그래
 import sys
 from collections import deque
 
+from pathlib import Path
+
 from PIL import Image, ImageFilter
 
 # 바탕색으로 볼 색 거리. 픽셀 아트라 배경이 거의 단색이지만 노이즈가 조금 있다.
@@ -266,6 +268,89 @@ def flood_from_border(pixels, width, height, base):
 
     return seen
 
+
+
+# ---------------------------------------------------------------------------
+# 스프라이트 시트 — **몸통에서 떨어진 조각 털기**
+#
+# 저쪽 워크 시트에 몸과 이어지지 않은 발·다리 조각이 섞여 들어온 칸이 있다.
+# 보더콜리와 웰시코기는 하필 **정지 프레임(1번)** 에 붙어 있어서, 방 안에서
+# 강아지가 멈출 때마다 앞쪽에 흰 점이 떠 있었다.
+#
+# 저쪽 아트 규약이 "칸마다 오른쪽을 보는 강아지 하나"이므로, 칸에서 **가장 큰
+# 덩어리 하나만 남기면** 된다. 지운 조각은 크기와 함께 찍는다 — 진짜 몸의 일부를
+# 지우는 사고가 나면 로그에 보이게 하려는 것이다.
+# ---------------------------------------------------------------------------
+
+# 이 비율을 넘는 조각을 지우면 몸의 일부일 수 있다. 지우되 눈에 띄게 알린다.
+LOOSE_WARN_RATIO = 0.05
+
+# 이 알파부터 그림으로 친다. 가장자리 반투명이 조각을 몸에 이어주기도 해서 낮게 잡는다.
+ALPHA_FLOOR = 8
+
+
+def _blobs(alpha, width, height):
+    """알파가 있는 픽셀의 4-연결 덩어리들. 큰 것부터."""
+    seen = bytearray(width * height)
+    found = []
+    for sy in range(height):
+        row = sy * width
+        for sx in range(width):
+            i = row + sx
+            if seen[i] or alpha[i] < ALPHA_FLOOR:
+                continue
+            stack = [i]
+            seen[i] = 1
+            blob = []
+            while stack:
+                j = stack.pop()
+                blob.append(j)
+                x, y = j % width, j // width
+                if x > 0 and not seen[j - 1] and alpha[j - 1] >= ALPHA_FLOOR:
+                    seen[j - 1] = 1; stack.append(j - 1)
+                if x + 1 < width and not seen[j + 1] and alpha[j + 1] >= ALPHA_FLOOR:
+                    seen[j + 1] = 1; stack.append(j + 1)
+                if y > 0 and not seen[j - width] and alpha[j - width] >= ALPHA_FLOOR:
+                    seen[j - width] = 1; stack.append(j - width)
+                if y + 1 < height and not seen[j + width] and alpha[j + width] >= ALPHA_FLOOR:
+                    seen[j + width] = 1; stack.append(j + width)
+            found.append(blob)
+    found.sort(key=len, reverse=True)
+    return found
+
+
+def strip_loose_bits(src_path: str, dst_path: str, columns: int = 4) -> int:
+    """시트의 각 칸에서 가장 큰 덩어리만 남긴다. 지운 조각 수를 돌려준다."""
+    sheet = Image.open(src_path).convert("RGBA")
+    frame_w = sheet.width // columns
+    height = sheet.height
+    removed = 0
+
+    for col in range(columns):
+        box = (col * frame_w, 0, (col + 1) * frame_w, height)
+        frame = sheet.crop(box)
+        alpha = bytearray(frame.split()[3].tobytes())
+        parts = _blobs(alpha, frame_w, height)
+        if len(parts) < 2:
+            continue
+
+        main = len(parts[0])
+        pixels = frame.load()
+        for blob in parts[1:]:
+            ratio = len(blob) / main
+            flag = "  ★ 몸의 일부일 수 있다" if ratio > LOOSE_WARN_RATIO else ""
+            print(
+                "    %s 칸%d: 조각 %d px (몸의 %.1f%%) 지움%s"
+                % (Path(src_path).stem, col, len(blob), ratio * 100, flag)
+            )
+            for j in blob:
+                pixels[j % frame_w, j // frame_w] = (0, 0, 0, 0)
+            removed += 1
+
+        sheet.paste(frame, box)
+
+    sheet.save(dst_path)
+    return removed
 
 def mask_of(src_path: str) -> bytearray:
     """

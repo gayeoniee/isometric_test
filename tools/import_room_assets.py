@@ -10,6 +10,8 @@
 frankie516c/dog-training-rag 의 `ui-experiments/main-screen/assets` 아래에서
 테마 팩과 견종 워크 시트를 받아오면, 이 스크립트가 세 가지를 한 번에 한다.
 
+  0. **강아지 시트 조각 털기** — 칸마다 몸에서 떨어진 발·다리 조각이 섞여 오는
+     경우가 있다. 칸에서 가장 큰 덩어리만 남긴다.
   1. **방 그림 컷아웃** — 테마의 `room.png` 는 알파가 없는 불투명 그림이다.
      바깥을 뚫고 테두리를 두른다. 소품과 강아지는 이미 투명해서 건드리지 않는다.
 
@@ -40,7 +42,7 @@ from pathlib import Path
 from PIL import Image
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from room_cutout import apply_mask, mask_of  # noqa: E402
+from room_cutout import apply_mask, mask_of, strip_loose_bits  # noqa: E402
 
 # 손실 압축 품질. 92 는 원본과 육안 차이가 없으면서 10분의 1 로 줄어드는 지점이다.
 WEBP_QUALITY = 92
@@ -93,11 +95,19 @@ def main(drop: Path, out: Path) -> None:
                 staged.unlink()
 
     for png in sorted((drop / "dogs").glob("*.png")):
+        # 시트에 몸과 떨어진 조각이 섞여 오는 칸이 있다. 하필 정지 프레임에 붙으면
+        # 강아지가 멈출 때마다 앞에 점이 떠 있는다.
+        staged = png.with_name(f"{png.stem}.clean.png")
+        if strip_loose_bits(str(png), str(staged)) == 0:
+            staged.unlink()
+            staged = png
         name = resource_name("dog", png.stem)
-        a, b = to_webp(png, out / f"{name}.webp")
-        before += a
+        a, b = to_webp(staged, out / f"{name}.webp")
+        before += png.stat().st_size
         after += b
         made += 1
+        if staged != png:
+            staged.unlink()
 
     print(f"{made}개  {before / 1e6:.1f}MB -> {after / 1e6:.1f}MB  ({after / before * 100:.0f}%)")
 
