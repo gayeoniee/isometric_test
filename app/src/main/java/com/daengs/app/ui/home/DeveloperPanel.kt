@@ -61,8 +61,9 @@ fun DeveloperToggle(on: Boolean, onToggle: () -> Unit, modifier: Modifier = Modi
 /**
  * 켰을 때 뜨는 패널.
  *
- * 방 위에 겹치므로 **좁고 반투명**하게 둔다 — 자를 대려고 켠 것인데 패널이 방을
- * 가리면 아무 소용이 없다.
+ * 방 위에 겹치므로 **낮게** 둔다 — 자를 대려고 켠 것인데 패널이 방을 가리면 아무
+ * 소용이 없다. 처음엔 소품 목록까지 넣었다가 방을 절반 가려서 뺐다.
+ * 소품 좌표는 [drawDeveloperOverlay] 가 방 위에 직접 라벨로 그린다.
  */
 @Composable
 fun DeveloperPanel(
@@ -74,7 +75,7 @@ fun DeveloperPanel(
 ) {
     Column(
         modifier
-            .widthIn(max = 210.dp)
+            .widthIn(max = 260.dp)
             .clip(RoundedCornerShape(8.dp))
             .background(PanelBg)
             .padding(8.dp),
@@ -87,15 +88,8 @@ fun DeveloperPanel(
             fontWeight = FontWeight.Bold,
         )
 
-        state.items.forEach { item ->
-            Text(
-                "${item.itemId}  [${item.col},${item.row}] f${item.facing}",
-                color = PanelDim,
-                fontSize = 8.sp,
-            )
-        }
-
-        Text("견종", color = PanelText, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+        // 소품 목록은 여기 안 넣는다. 좌표는 이미 방 위에 라벨로 그려지고 있어서
+        // 중복인데, 개수만큼 패널이 길어져서 **방을 절반이나 가렸다.**
         Row(
             Modifier.horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(4.dp),

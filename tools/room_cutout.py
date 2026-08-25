@@ -48,6 +48,17 @@
 보였다.** 배경색이 달라지면 같은 그림자가 다르게 읽힌다. 그래서 배경과 함께 지운다.
 필요해지면 방 밑에 코드로 그리는 편이 배경색을 따라가므로 낫다.
 
+## 테마 방은 이 방법이 안 통한다
+
+파스텔 테마의 방은 **벽 색이 배경색과 거의 같다**(벚꽃: 벽 #F4D7DF / 배경 #DCB5C0).
+색으로 가르는 flood 는 벽을 배경으로 보고 그대로 타고 들어간다 — 실제로 오른쪽
+벽이 통째로 뜯겼다.
+
+테마는 같은 그림을 리컬러한 것이라 **실루엣이 전부 같다**(저쪽 README 도 "retain
+the transparent silhouettes of their source assets" 라고 적어뒀다). 그래서 배경과
+벽이 충분히 다른 **원본 방 한 장에서 실루엣을 구해** 나머지에 씌운다.
+[mask_of] 와 [apply_mask] 가 그 일을 한다.
+
 사용:
     uv run tools/room_cutout.py <입력.png> [출력.png]
 
@@ -254,6 +265,61 @@ def flood_from_border(pixels, width, height, base):
         push(x, y + 1)
 
     return seen
+
+
+def mask_of(src_path: str) -> bytearray:
+    """
+    [src_path] 의 **실루엣**만 구한다. 1 이면 방, 0 이면 배경.
+
+    색이 뚜렷이 다른 원본에서 뽑아 테마 방들에 씌우는 용도다.
+    """
+    image = Image.open(src_path).convert("RGBA")
+    width, height = image.size
+    pixels = image.load()
+    corners = [pixels[0, 0], pixels[width - 1, 0], pixels[0, height - 1], pixels[width - 1, height - 1]]
+    base = tuple(sum(c[i] for c in corners) // len(corners) for i in range(3))
+
+    outside = flood_from_border(pixels, width, height, base)
+    shadow = peel_shadow(pixels, width, height, outside, base)
+
+    keep = bytearray(width * height)
+    for i in range(width * height):
+        keep[i] = 0 if (outside[i] or shadow[i]) else 1
+
+    # 실루엣에서도 디더링 찌꺼기를 턴다. 마스크 단계에서 털어야 씌우는 쪽이 깨끗하다.
+    for _ in range(3):
+        doomed = []
+        for y in range(height):
+            for x in range(width):
+                i = y * width + x
+                if not keep[i]:
+                    continue
+                empty = 0
+                for dx, dy in ((-1, 0), (1, 0), (0, -1), (0, 1)):
+                    nx, ny = x + dx, y + dy
+                    if not (0 <= nx < width and 0 <= ny < height) or not keep[ny * width + nx]:
+                        empty += 1
+                if empty >= 3:
+                    doomed.append(i)
+        if not doomed:
+            break
+        for i in doomed:
+            keep[i] = 0
+    return keep
+
+
+def apply_mask(src_path: str, dst_path: str, keep: bytearray) -> None:
+    """[keep] 실루엣을 [src_path] 에 씌운다. 테마 방들이 이 경로를 탄다."""
+    image = Image.open(src_path).convert("RGBA")
+    width, height = image.size
+    if len(keep) != width * height:
+        raise ValueError(f"마스크 크기가 다르다: {len(keep)} vs {width * height}")
+    pixels = image.load()
+    for y in range(height):
+        for x in range(width):
+            if not keep[y * width + x]:
+                pixels[x, y] = (0, 0, 0, 0)
+    add_outline(image).save(dst_path)
 
 
 if __name__ == "__main__":

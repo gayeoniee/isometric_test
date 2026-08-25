@@ -58,6 +58,29 @@ data class RoomTheme(
     }
 
     companion object {
+        /**
+         * 원본 그림 그대로 — 황토빛 회벽, 꿀색 마루, 올리브 문.
+         *
+         * 파스텔 5종은 이 그림을 리컬러한 것이라, 이쪽이 **원본이자 기본값**이다.
+         * 처음 테마를 넣을 때 5종만 등록했더니 원본이 갈 곳이 없어져 사라졌다.
+         */
+        val Sage = RoomTheme(
+            id = "sage",
+            label = "세이지",
+            room = R.drawable.theme_sage_room,
+            rug = R.drawable.theme_sage_rug,
+            rugCream = R.drawable.theme_sage_rug_cream,
+            plant = R.drawable.theme_sage_plant,
+            doghouse = R.drawable.theme_sage_doghouse,
+            ball = R.drawable.theme_sage_ball,
+            cabinet = R.drawable.theme_sage_cabinet,
+            basket = R.drawable.theme_sage_basket,
+            bowls = R.drawable.theme_sage_bowls,
+            swatchWall = Color(0xFFEDD09F),
+            swatchFloor = Color(0xFFD9A867),
+            swatchAccent = Color(0xFF7F793A),
+        )
+
         val CherryBlossom = RoomTheme(
             id = "cherry-blossom",
             label = "벚꽃",
@@ -143,9 +166,9 @@ data class RoomTheme(
             swatchAccent = Color(0xFFB68737),
         )
 
-        val ALL: List<RoomTheme> = listOf(CherryBlossom, Mint, Lavender, SkyBlue, Butter)
+        val ALL: List<RoomTheme> = listOf(Sage, CherryBlossom, Mint, Lavender, SkyBlue, Butter)
 
-        val DEFAULT: RoomTheme = CherryBlossom
+        val DEFAULT: RoomTheme = Sage
 
         /** 저장된 id 로 되찾는다. 모르는 id 면 기본값 — 옛 저장값이 남아 있어도 안 깨진다. */
         fun byId(id: String): RoomTheme = ALL.firstOrNull { it.id == id } ?: DEFAULT

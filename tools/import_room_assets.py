@@ -11,8 +11,12 @@ frankie516c/dog-training-rag 의 `ui-experiments/main-screen/assets` 아래에�
 테마 팩과 견종 워크 시트를 받아오면, 이 스크립트가 세 가지를 한 번에 한다.
 
   1. **방 그림 컷아웃** — 테마의 `room.png` 는 알파가 없는 불투명 그림이다.
-     [room_cutout] 을 돌려 바깥을 뚫고 테두리를 두른다. 소품과 강아지는 이미
-     투명해서 건드리지 않는다.
+     바깥을 뚫고 테두리를 두른다. 소품과 강아지는 이미 투명해서 건드리지 않는다.
+
+     실루엣은 **참조 방 한 장에서만 구해** 전 테마에 씌운다. 파스텔 테마는 벽 색이
+     배경색과 거의 같아서 색으로 가르면 벽이 통째로 뜯긴다. 테마는 같은 그림을
+     리컬러한 것이라 실루엣이 전부 같으므로, 배경과 벽이 뚜렷이 다른 원본
+     (`reference-room.png`, 황토색 배경)에서 한 번 구하면 된다.
   2. **WebP 변환** — PNG 그대로 넣으면 55MB 다. 손실 WebP(q92)면 6MB 로 줄고,
      2배 확대해 비교해도 눈에 띄는 차이가 없다. 부드럽게 셰이딩된 그림이라
      손실 압축이 잘 먹는다. (2색 도트였다면 무손실을 써야 한다)
@@ -36,7 +40,7 @@ from pathlib import Path
 from PIL import Image
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from room_cutout import cutout  # noqa: E402
+from room_cutout import apply_mask, mask_of  # noqa: E402
 
 # 손실 압축 품질. 92 는 원본과 육안 차이가 없으면서 10분의 1 로 줄어드는 지점이다.
 WEBP_QUALITY = 92
@@ -64,14 +68,22 @@ def main(drop: Path, out: Path) -> None:
     before = after = 0
     made = 0
 
+    reference = drop / "reference-room.png"
+    if not reference.exists():
+        raise SystemExit(
+            f"참조 방이 없다: {reference}\n"
+            "배경과 벽이 뚜렷이 다른 원본 방 PNG 가 필요하다."
+        )
+    silhouette = mask_of(str(reference))
+
     themes = sorted(p for p in (drop / "themes").iterdir() if p.is_dir())
     for theme in themes:
         for png in sorted(theme.glob("*.png")):
             staged = png
             if png.stem == "room":
-                # 방만 불투명하다. 뚫고 테두리를 둘러서 임시 파일로 만든다.
+                # 방만 불투명하다. 참조 실루엣을 씌우고 테두리를 둘러 임시 파일로.
                 staged = png.with_name("room.cut.png")
-                cutout(str(png), str(staged))
+                apply_mask(str(png), str(staged), silhouette)
             name = resource_name("theme", theme.name, png.stem)
             a, b = to_webp(staged, out / f"{name}.webp")
             before += png.stat().st_size
