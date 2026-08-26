@@ -36,7 +36,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathMeasure
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -67,6 +75,49 @@ private val DexBg = Color(0xFFF6E9E3)
 
 /** 카드 칸의 세로 비율. 웹판 `.slot .frame { aspect-ratio: 4/5 }` 와 같다. */
 private const val SLOT_RATIO = 1.25f
+
+/**
+ * 꾹 누르는 동안 차오르는 테두리.
+ *
+ * **카드 모서리를 따라가야 한다.** 처음에 `drawArc` 로 그렸더니 사각형에 내접한
+ * 타원이 나왔다 — 카드와 아무 상관 없는 선이라 "카드가 반응한다"로 안 읽힌다.
+ * 저쪽은 `border-radius: 5% / 3.6%` 짜리 둥근 사각형 테두리를 conic-gradient 로
+ * 채운다. 여기서는 같은 모양의 경로를 만들어 앞에서부터 [progress] 만큼 잘라 그린다.
+ *
+ * 위 가운데에서 시작한다. 경로를 그냥 재면 모서리 어딘가에서 시작해 어색하다.
+ */
+private fun DrawScope.drawHoldRing(progress: Float, color: Color) {
+    val rx = size.width * 0.05f
+    val ry = size.height * 0.036f
+    val path = Path().apply {
+        addRoundRect(
+            RoundRect(
+                rect = Rect(Offset.Zero, size),
+                topLeft = CornerRadius(rx, ry),
+                topRight = CornerRadius(rx, ry),
+                bottomRight = CornerRadius(rx, ry),
+                bottomLeft = CornerRadius(rx, ry),
+            ),
+        )
+    }
+    val measure = PathMeasure().apply { setPath(path, false) }
+    val total = measure.length
+    if (total <= 0f) return
+
+    // 위 가운데가 경로의 어디쯤인지. addRoundRect 는 오른쪽 위 모서리 근처에서
+    // 시작하므로, 한 바퀴의 7/8 지점이 대략 위 가운데다.
+    val start = total * 0.875f
+    val want = total * progress.coerceIn(0f, 1f)
+
+    val seg = Path()
+    val first = minOf(want, total - start)
+    measure.getSegment(start, start + first, seg, true)
+    if (want > first) {
+        // 한 바퀴를 넘어가면 앞쪽에서 이어 붙인다
+        measure.getSegment(0f, want - first, seg, true)
+    }
+    drawPath(seg, color, style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round))
+}
 
 @Composable
 fun ComposeDexScreen(onClose: () -> Unit, modifier: Modifier = Modifier) {
@@ -185,13 +236,7 @@ private fun GridCard(card: DexCard, onOpen: () -> Unit, onImmersive: (() -> Unit
             // **없으면 카드가 멈춘 줄 안다** — 꾹 누르기는 눌러보기 전엔 알 수가 없다.
             if (rub.hold > 0f) {
                 Canvas(Modifier.matchParentSize()) {
-                    drawArc(
-                        color = card.accent,
-                        startAngle = -90f,
-                        sweepAngle = 360f * rub.hold,
-                        useCenter = false,
-                        style = Stroke(width = 3.dp.toPx()),
-                    )
+                    drawHoldRing(rub.hold, card.accent)
                 }
             }
         }

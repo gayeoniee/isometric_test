@@ -58,6 +58,14 @@ import kotlin.math.sin
 
 private const val ENTER_MS = 2100
 
+/**
+ * 배경을 화면보다 이만큼 크게 깐다.
+ *
+ * 시차로 밀리는 층이라 딱 맞게 깔면 밀리는 순간 가장자리에 빈 데가 생긴다.
+ * [Par.AMBIENT] 가 12px 이므로 여유가 조금만 있으면 된다. 저쪽 `--k: 1.06` 과 같다.
+ */
+private const val AMBIENT_OVERSCAN = 1.06f
+
 @Composable
 fun ImmersiveScreen(
     scene: ImmersiveScene = CABBAGE_SCENE,
@@ -145,14 +153,20 @@ private fun DrawScope.drawStage(
         ),
     )
 
-    // 2. 색 환경 — 같은 배경 그림을 크게 흐리게 깐 것.
-    //    저쪽도 진짜 블러가 아니라 "크게 늘려 색만 남긴" 층이다.
+    // 2. 색 환경 — 배경 그림을 크게 깔아 색만 남긴다.
+    //
+    // **화면을 덮어야 한다(cover).** 원화가 1339x670 으로 가로가 긴데 가로만 맞추면
+    // 세로가 화면의 절반밖에 안 돼서 밭이 띠처럼 남는다. 긴 쪽이 아니라 **모자란 쪽**을
+    // 기준으로 키우고 넘치는 만큼은 잘라 낸다.
+    //
+    // 시차로 움직이는 층이라 화면보다 [AMBIENT_OVERSCAN] 만큼 더 키운다 — 딱 맞게
+    // 깔면 밀리는 순간 가장자리에 빈 데가 생긴다.
     if (back != null) {
         val d = parallax(aim, Par.AMBIENT)
         translate(d.x, d.y) {
-            val over = 1.35f
-            val w = size.width * over
-            val h = w * back.height / back.width
+            val scale = maxOf(size.width / back.width, size.height / back.height) * AMBIENT_OVERSCAN
+            val w = back.width * scale
+            val h = back.height * scale
             drawImage(
                 image = back,
                 dstOffset = androidx.compose.ui.unit.IntOffset(
@@ -160,10 +174,32 @@ private fun DrawScope.drawStage(
                     ((size.height - h) / 2f).roundToInt(),
                 ),
                 dstSize = androidx.compose.ui.unit.IntSize(w.roundToInt(), h.roundToInt()),
-                alpha = 0.55f,
                 filterQuality = FilterQuality.Low,
             )
         }
+        // 늘어나 흐려진 걸 가리고 주인공을 띄운다.
+        //
+        // **위아래를 다르게 덮는다.** 사방을 고르게 어둡게 하면 하늘까지 뭉개져서
+        // 장면이 텃밭 한 덩어리로 보인다 — 흙(아래)은 깊게 눌러 주인공을 띄우고,
+        // 하늘(위)은 살린다. 저쪽 `.dio-back::after` 값 그대로다.
+        //
+        // 이 층은 **시차를 안 탄다.** 같이 밀리면 화면 한쪽 구석이 밝아진다.
+        drawRect(
+            Brush.verticalGradient(
+                0f to Color.Transparent,
+                0.42f to Color(0x38020603),
+                0.66f to Color(0x94020603),
+                1f to Color(0xD6020603),
+            ),
+        )
+        drawRect(
+            Brush.radialGradient(
+                0.46f to Color.Transparent,
+                1f to Color(0x80020603),
+                center = Offset(size.width * 0.5f, size.height * 0.54f),
+                radius = size.width * 0.92f,
+            ),
+        )
     }
 
     // 3. 빛줄기 — 위에서 비스듬히 내려온다
@@ -179,6 +215,9 @@ private fun DrawScope.drawStage(
                     end = Offset(size.width * 0.1f, size.height),
                 ),
                 blendMode = BlendMode.Screen,
+                // 배경에 잎사귀가 가득해서 세게 걸면 다 씻겨 나간다.
+                // 있는 듯 없는 듯한 정도로만 남긴다 (저쪽 `.dio-rays { opacity: .3 }`).
+                alpha = 0.3f,
             )
         }
     }
@@ -249,15 +288,6 @@ private fun DrawScope.drawStage(
         drawCircle(Color.White.copy(alpha = dw.alpha), dw.r * 0.35f, p - Offset(dw.r * 0.3f, dw.r * 0.3f))
     }
 
-    // 가장자리 어둡게 — 무대에 초점이 모인다
-    drawRect(
-        Brush.radialGradient(
-            0.55f to Color.Transparent,
-            1f to Color(0xAA000000),
-            center = Offset(size.width / 2f, size.height * 0.45f),
-            radius = size.width * 0.9f,
-        ),
-    )
 }
 
 /**
