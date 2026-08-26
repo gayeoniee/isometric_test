@@ -87,11 +87,26 @@ private const val GLARE_OPACITY = "0.72"
  * 블렌드 레이어 4~5장이 전부 그 크기로 잡히고, 그래서
  * `tile memory limits exceeded` 가 난다.
  *
+ * **`align-self: start` 가 꼭 필요하다.** 없으면 칸이 그 행에서 제일 큰 칸 높이로
+ * 늘어난다. 저쪽은 슬롯을 `1fr auto` 두 줄로 짜고 그림 자리를 4:5 로 잡아 두는데,
+ * 칸이 늘어나면 그 4:5 가 깨져 세로로 길어지고, 카드가 **높이 기준**으로 크기를
+ * 잡으므로 (`height:100%` + `aspect-ratio: --ar`) 폭까지 같이 넓어져 칸을 넘친다.
+ *
+ * 실제로 그렇게 잘렸다. 하필 1행이 배추(No.01)와 페퍼인데, 배추만 "꾹 눌러서
+ * 들어가기" 버튼이 있어 칸이 길고, 그래서 옆의 페퍼가 넘쳤다. 비율이 넓은 카드
+ * (페퍼·가지·당근·단호박·상추 0.80, 나머지 0.72~0.725)일수록 크게 넘친다.
+ * 1열일 때는 옆칸이 없어서 안 생기던 문제다.
+ *
+ * `minmax(0, 1fr)` 도 같이 필요하다. 그냥 `1fr` 은 칸의 최소 폭이 `auto` 라 내용보다
+ * 작아지지 못한다.
+ *
  * 두 칸으로 만들면 카드 면적이 **4분의 1** 이 된다. 포일을 제대로 보는 건 어차피
  * 확대 뷰이고 (저쪽 README: "이 데모는 카드를 보라고 만든 것이라 화면을 카드에 다
  * 준다"), 그리드는 모아둔 걸 훑는 자리라 두 칸이 도감답기도 하다.
  */
-private const val GRID_CSS = "#dex{grid-template-columns:repeat(2,1fr)!important}"
+private const val GRID_CSS =
+    "#dex{grid-template-columns:repeat(2,minmax(0,1fr))!important}" +
+        "#dex > li{align-self:start}"
 
 /**
  * 화면 밖 카드는 아예 그리지 않는다.
