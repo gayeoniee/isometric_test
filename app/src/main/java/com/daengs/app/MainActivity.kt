@@ -8,7 +8,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.rememberSaveable
-import com.daengs.app.ui.dex.CardDexScreen
+import com.daengs.app.ui.dex.compose.ComposeDexScreen
 import com.daengs.app.ui.home.HomeScreen
 import com.daengs.app.ui.theme.DaengsTheme
 
@@ -23,7 +23,8 @@ class MainActivity : ComponentActivity() {
                 var dexOpen by rememberSaveable { mutableStateOf(false) }
 
                 if (dexOpen) {
-                    CardDexScreen(onClose = { dexOpen = false })
+                    // 이 브랜치는 Compose 판이다. WebView 판은 main 에 있다.
+                    ComposeDexScreen(onClose = { dexOpen = false })
                 } else {
                     HomeScreen(onOpenDex = { dexOpen = true })
                 }
