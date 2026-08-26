@@ -11,12 +11,20 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathMeasure
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import kotlinx.coroutines.withTimeoutOrNull
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import kotlin.math.roundToInt
@@ -50,6 +58,10 @@ fun HoloCard(
     modifier: Modifier = Modifier,
     tune: FoilTune = FoilTune(),
     tilt: Boolean = true,
+    /** 꾹 누르는 중이면 0~1. 카드 테두리를 따라 차오른다. */
+    hold: Float = 0f,
+    /** 게이지 색. 카드마다 다르다(저쪽 `accent`). */
+    holdColor: Color = Color.White,
 ) {
     val ratio = if (art != null) art.width.toFloat() / art.height else 0.8f
     Canvas(
@@ -78,7 +90,44 @@ fun HoloCard(
             )
         }
         drawFoil(foil, input, tune)
+        // **카드 안에서 그린다.** 밖에서 그리면 칸 크기를 따라가서 카드보다 넓어진다 —
+        // 카드는 높이 기준이라 칸보다 좁다.
+        if (hold > 0f) drawHoldRing(hold, holdColor)
     }
+}
+
+/**
+ * 꾹 누르는 동안 차오르는 테두리.
+ *
+ * **위 가운데에서 시작해 위 가운데로 끝난다.** 경로를 모서리에서 시작해 한 바퀴를
+ * 이어 붙이면 이음매가 생겨 시작점과 끝점이 안 만난다. 그래서 위 가운데를 출발점으로
+ * 삼는 경로를 직접 만든다 — 그러면 자르기만 하면 되고 이어 붙일 일이 없다.
+ *
+ * 모서리는 저쪽 `border-radius: 5% / 3.6%` 다.
+ */
+private fun DrawScope.drawHoldRing(progress: Float, color: Color) {
+    val w = size.width
+    val h = size.height
+    val rx = w * 0.05f
+    val ry = h * 0.036f
+
+    val path = Path().apply {
+        moveTo(w / 2f, 0f)
+        lineTo(w - rx, 0f)
+        arcTo(Rect(w - 2 * rx, 0f, w, 2 * ry), -90f, 90f, false)
+        lineTo(w, h - ry)
+        arcTo(Rect(w - 2 * rx, h - 2 * ry, w, h), 0f, 90f, false)
+        lineTo(rx, h)
+        arcTo(Rect(0f, h - 2 * ry, 2 * rx, h), 90f, 90f, false)
+        lineTo(0f, ry)
+        arcTo(Rect(0f, 0f, 2 * rx, 2 * ry), 180f, 90f, false)
+        lineTo(w / 2f, 0f)
+    }
+
+    val measure = PathMeasure().apply { setPath(path, false) }
+    val seg = Path()
+    measure.getSegment(0f, measure.length * progress.coerceIn(0f, 1f), seg, true)
+    drawPath(seg, color, style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round))
 }
 
 /**
@@ -152,7 +201,9 @@ fun Modifier.rubbable(state: RubState, consume: Boolean = true): Modifier = this
                 state.hold = held.coerceIn(0f, 1f)
                 if (held >= 1f) {
                     fired = true
-                    state.hold = 0f
+                    // **1 로 두고 나간다.** 0 으로 되돌리면 다 찬 테두리가 한 프레임도
+                    // 안 그려져서 "시작점과 안 만나고 끝난다"로 보인다.
+                    state.hold = 1f
                     state.release()
                     state.onHold?.invoke()
                     return@awaitEachGesture
