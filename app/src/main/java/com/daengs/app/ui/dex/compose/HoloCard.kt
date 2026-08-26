@@ -53,7 +53,10 @@ fun HoloCard(
     val ratio = if (art != null) art.width.toFloat() / art.height else 0.8f
     Canvas(
         modifier
-            .aspectRatio(ratio)
+            // 높이가 먼저 정해지면 폭을 비율로 구한다. 그리드에서 카드 **높이를
+            // 맞추고 폭만 비율대로** 달라지게 하려는 것이다 — 웹판이 "실물 카드
+            // 바인더와 같은 정렬" 이라고 부르는 배치다.
+            .aspectRatio(ratio, matchHeightConstraintsFirst = true)
             .graphicsLayer {
                 // 포일이 카드 그림과 섞이려면 둘이 같은 레이어에 있어야 한다.
                 compositingStrategy = CompositingStrategy.Offscreen
@@ -110,8 +113,13 @@ class RubState {
     }
 }
 
-/** [RubState] 를 붙인다. 카드 자체에 걸어야 좌표가 카드 기준이 된다. */
-fun Modifier.rubbable(state: RubState): Modifier = this.pointerInput(state) {
+/**
+ * [RubState] 를 붙인다. 카드 자체에 걸어야 좌표가 카드 기준이 된다.
+ *
+ * @param consume 드래그를 먹을지. **그리드에서는 false 여야 한다** — 먹으면 카드를
+ *   짚고 쓸어내릴 때 목록이 안 움직인다. 확대 뷰에서는 스크롤이 없으므로 먹어도 된다.
+ */
+fun Modifier.rubbable(state: RubState, consume: Boolean = true): Modifier = this.pointerInput(state, consume) {
     awaitEachGesture {
         val down = awaitFirstDown(requireUnconsumed = false)
         state.move(down.position, size.toSize())
@@ -122,7 +130,7 @@ fun Modifier.rubbable(state: RubState): Modifier = this.pointerInput(state) {
             if ((change.position - down.position).getDistance() > viewConfiguration.touchSlop) moved = true
             if (moved) {
                 state.move(change.position, size.toSize())
-                change.consume()
+                if (consume) change.consume()
             }
             if (!change.pressed) break
         }

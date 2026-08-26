@@ -8,6 +8,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -25,6 +26,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -39,6 +41,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.daengs.app.miniroom.art.rememberAssetImage
+import com.daengs.app.ui.dex.DeviceTilt
 import com.daengs.app.ui.theme.CreamBg
 import com.daengs.app.ui.theme.DaengPink
 import com.daengs.app.ui.theme.PinkFaint
@@ -59,6 +62,9 @@ import com.daengs.app.ui.theme.TextMuted
 
 /** 도감 배경. 앱 크림색보다 살짝 가라앉혀 카드가 떠 보이게 한다. */
 private val DexBg = Color(0xFFF6E9E3)
+
+/** 카드 칸의 세로 비율. 웹판 `.slot .frame { aspect-ratio: 4/5 }` 와 같다. */
+private const val SLOT_RATIO = 1.25f
 
 @Composable
 fun ComposeDexScreen(onClose: () -> Unit, modifier: Modifier = Modifier) {
@@ -136,14 +142,25 @@ private fun GridCard(card: DexCard, onOpen: () -> Unit) {
     val rub = rememberRubState(onTap = onOpen)
 
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        HoloCard(
-            art = art,
-            foil = card.foil,
-            input = rub.input,
-            // 그리드에서는 기울이지 않는다. 열두 장이 한꺼번에 도는 건 산만하다.
-            tilt = false,
-            modifier = Modifier.fillMaxWidth().rubbable(rub),
-        )
+        // **카드 높이를 칸마다 똑같이 맞춘다.** 그림 비율이 두 종류라(0.72 와 0.80)
+        // 폭을 맞추면 높이가 제각각이 되어 줄이 어긋난다. 웹판이 "실물 카드 바인더와
+        // 같은 정렬" 이라고 부르는 배치를 그대로 쓴다 — 높이는 같고 폭만 비율만큼
+        // 달라지며, 그림은 한 픽셀도 안 잘린다.
+        BoxWithConstraints(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+            HoloCard(
+                art = art,
+                foil = card.foil,
+                input = rub.input,
+                // 그리드에서는 기울이지 않는다. 열두 장이 한꺼번에 도는 건 산만하다.
+                tilt = false,
+                // 칸 폭의 4:5. 웹판 `.slot .frame` 과 같은 비율이다.
+                modifier = Modifier
+                    .height(maxWidth * SLOT_RATIO)
+                    // **드래그를 안 먹는다.** 먹으면 카드를 짚고 쓸어내릴 때 목록이
+                    // 안 움직인다.
+                    .rubbable(rub, consume = false),
+            )
+        }
         Spacer(Modifier.height(8.dp))
         Text("No. %02d".format(card.no), color = TextMuted, fontSize = 10.sp)
         Text(card.name, color = TextDark, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
@@ -168,6 +185,16 @@ private fun CardViewer(startIndex: Int, onClose: () -> Unit) {
     val art = rememberAssetImage(card.art)
     val rub = rememberRubState()
 
+    // 폰을 기울이면 카드가 따라 기운다. **확대 뷰에서만** 켠다 — 그리드에서 열두 장이
+    // 한꺼번에 도는 건 산만하고 비싸다.
+    val tiltTracker = remember { TiltTracker() }
+    DeviceTilt { beta, gamma -> tiltTracker.feed(beta, gamma) }
+    // 카드를 넘기면 지금 자세가 다시 정면이 된다
+    LaunchedEffect(index) { tiltTracker.reset() }
+
+    // **손가락이 이긴다.** 두 입력이 같은 카드를 두고 매 프레임 싸우면 화면이 떤다.
+    val input = if (rub.input.intensity > 0f) rub.input else (tiltTracker.input ?: rub.input)
+
     Box(
         Modifier
             .fillMaxSize()
@@ -183,7 +210,7 @@ private fun CardViewer(startIndex: Int, onClose: () -> Unit) {
             HoloCard(
                 art = art,
                 foil = card.foil,
-                input = rub.input,
+                input = input,
                 tilt = true,
                 modifier = Modifier.fillMaxWidth().rubbable(rub),
             )
