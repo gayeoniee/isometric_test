@@ -187,7 +187,13 @@ private fun GridCard(card: DexCard, onOpen: () -> Unit, onImmersive: (() -> Unit
             )
         }
         Spacer(Modifier.height(8.dp))
+        Text("No. %02d".format(card.no), color = TextMuted, fontSize = 10.sp)
+        Text(card.name, color = TextDark, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+        Text(card.statLine, color = TextMuted, fontSize = 11.sp, textAlign = TextAlign.Center)
+        // **캡션 아래에 둔다.** 카드와 캡션 사이에 끼우면 이 칸만 캡션이 밀려 내려가
+        // 옆 칸과 줄이 어긋난다. 웹판도 캡션 다음이다.
         if (onImmersive != null) {
+            Spacer(Modifier.height(6.dp))
             // 꾹 누르기는 발견해야 아는 손짓이라 유일한 길이면 안 된다 (저쪽 주석).
             Text(
                 "★★★ 꾹 눌러서 들어가기",
@@ -199,11 +205,7 @@ private fun GridCard(card: DexCard, onOpen: () -> Unit, onImmersive: (() -> Unit
                     .clickable(onClick = onImmersive)
                     .padding(horizontal = 8.dp, vertical = 3.dp),
             )
-            Spacer(Modifier.height(4.dp))
         }
-        Text("No. %02d".format(card.no), color = TextMuted, fontSize = 10.sp)
-        Text(card.name, color = TextDark, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-        Text(card.statLine, color = TextMuted, fontSize = 11.sp, textAlign = TextAlign.Center)
     }
 }
 
