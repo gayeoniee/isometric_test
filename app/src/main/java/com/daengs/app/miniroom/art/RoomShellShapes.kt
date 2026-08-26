@@ -10,6 +10,9 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.clipPath
+import androidx.compose.ui.graphics.Matrix
+import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntRect
 import androidx.compose.ui.unit.IntSize
@@ -311,3 +314,147 @@ fun DrawScope.drawPawStamp(center: Offset, r: Float, color: Color) {
         )
     }
 }
+
+// ---------------------------------------------------------------------------
+// 벽에 건 액자 — 도감으로 들어가는 문
+//
+// 문과 같은 방식이다. 그림에 자로 재서 백분율로 잡고, 누르면 열린다.
+//
+// **문·창문이 있는 벽이 아니라 아무것도 없는 오른쪽 벽에 건다.** 가로로 겹치면
+// 문을 누르려다 도감이 열린다.
+//
+//     문     6.8% ~ 17.8%
+//     창문  32.3% ~ 49.1%
+//     액자  67.4% ~ 96.6%   <- 여기가 빈 벽이다
+// ---------------------------------------------------------------------------
+
+/**
+ * 액자 규격. 오른쪽 빈 벽에 걸린다.
+ *
+ * 벽이 물러나는 평면이라 **액자도 같이 기울어야** 벽에 붙어 보인다. 그림에서 벽의
+ * 위 가장자리를 재보니 가로 1% 갈 때마다 세로로 0.35% 내려간다 ([SLOPE]).
+ */
+object FrameSpec {
+    /** 왼쪽 모서리 (스테이지 가로 %) */
+    const val LEFT = 72f
+
+    /** 오른쪽 모서리 */
+    const val RIGHT = 91f
+
+    /** 왼쪽 모서리에서의 액자 위 끝 (스테이지 세로 %) */
+    const val TOP = 26f
+
+    /** 액자 높이 (스테이지 세로 %) */
+    const val HEIGHT = 17f
+
+    /**
+     * 벽 기울기. 가로 1%당 내려가는 세로 %.
+     *
+     * 오른쪽 벽의 위 가장자리를 x 70%~94% 구간에서 재서 얻었다 (12.9% -> 21.3%).
+     * 바닥 쪽은 걸레받이·가구가 걸려서 값이 흔들리므로 위 가장자리를 썼다.
+     */
+    const val SLOPE = 0.35f
+
+    /** [x] (가로 %) 에서 액자가 내려간 정도 (세로 %) */
+    fun drop(x: Float) = SLOPE * (x - LEFT)
+
+    /** 누르는 판정에 쓰는 사각형. 기울기를 무시한 외접 사각형이라 조금 너그럽다. */
+    fun bounds(g: RoomGeometry): Rect {
+        val left = g.stage.left + LEFT / 100f * g.stage.width
+        val right = g.stage.left + RIGHT / 100f * g.stage.width
+        val top = g.stage.top + TOP / 100f * g.stage.height
+        val bottom = g.stage.top + (TOP + HEIGHT + drop(RIGHT)) / 100f * g.stage.height
+        return Rect(left, top, right, bottom)
+    }
+
+    /** 액자를 눌렀는가. */
+    fun contains(g: RoomGeometry, pos: Offset): Boolean = bounds(g).contains(pos)
+}
+
+/**
+ * 액자를 그린다. [picture] 가 null 이면 액자만 그린다.
+ *
+ * 기울기는 **캔버스를 밀어서** 준다. 액자와 그림을 각각 기울여 그리면 둘이 어긋나는데,
+ * 축에 나란한 사각형으로 그린 뒤 통째로 미는 편이 어긋날 자리가 없다.
+ *
+ * [pulse] 는 문과 같은 "누를 수 있다"는 표시다. 0..1.
+ */
+fun DrawScope.drawWallFrame(g: RoomGeometry, picture: ImageBitmap?, pulse: Float) {
+    val left = g.stage.left + FrameSpec.LEFT / 100f * g.stage.width
+    val right = g.stage.left + FrameSpec.RIGHT / 100f * g.stage.width
+    val top = g.stage.top + FrameSpec.TOP / 100f * g.stage.height
+    val height = FrameSpec.HEIGHT / 100f * g.stage.height
+    val width = right - left
+
+    // 가로 1px 갈 때 내려가는 세로 px. 백분율 기울기를 화면 비율로 환산한다.
+    val k = FrameSpec.SLOPE * (g.stage.height / g.stage.width)
+
+    withTransform({
+        transform(
+            Matrix().apply {
+                values[Matrix.SkewY] = k
+                // 기울임의 중심을 액자 왼쪽 모서리로 옮긴다. 안 그러면 화면 원점을
+                // 축으로 돌아서 액자가 엉뚱한 데로 간다.
+                values[Matrix.TranslateY] = -k * left
+            },
+        )
+    }) {
+        val border = height * 0.075f
+        val mat = height * 0.045f
+
+        // 액자 테두리. 평평한 사각형이라 픽셀 화풍과 안 부딪힌다.
+        drawRect(FrameWood, Offset(left, top), Size(width, height))
+        drawRect(
+            FrameWoodLit,
+            Offset(left, top),
+            Size(width, border * 0.6f),
+        )
+        // 안쪽 대지(mat)
+        drawRect(
+            FrameMat,
+            Offset(left + border, top + border),
+            Size(width - border * 2f, height - border * 2f),
+        )
+
+        val artLeft = left + border + mat
+        val artTop = top + border + mat
+        val artW = width - (border + mat) * 2f
+        val artH = height - (border + mat) * 2f
+        if (picture != null) {
+            clipRect(artLeft, artTop, artLeft + artW, artTop + artH) {
+                // 카드는 세로로 긴 그림이다. 가로를 채우고 위쪽을 보여준다 —
+                // 카드 얼굴이 위에 있어서 아래를 잘라야 뭔지 알아본다.
+                val scale = artW / picture.width
+                drawImage(
+                    image = picture,
+                    dstOffset = IntOffset(artLeft.roundToInt(), artTop.roundToInt()),
+                    dstSize = IntSize(
+                        artW.roundToInt(),
+                        (picture.height * scale).roundToInt(),
+                    ),
+                    filterQuality = FilterQuality.None,
+                )
+            }
+        } else {
+            drawRect(FrameEmpty, Offset(artLeft, artTop), Size(artW, artH))
+        }
+
+        if (pulse > 0.001f) {
+            drawRect(
+                Color.White.copy(alpha = 0.10f * pulse),
+                Offset(left, top),
+                Size(width, height),
+            )
+        }
+    }
+}
+
+/** 액자 나무. 방 그림의 가구 톤에서 가져왔다. */
+private val FrameWood = Color(0xFF6E5636)
+private val FrameWoodLit = Color(0xFF8A6E48)
+
+/** 그림 둘레 대지. */
+private val FrameMat = Color(0xFFF3E7CE)
+
+/** 그림이 아직 없을 때. */
+private val FrameEmpty = Color(0xFF2B2118)

@@ -64,6 +64,8 @@ fun HomeScreen(
     modifier: Modifier = Modifier,
     frameTimeMs: Long? = null,
     dateLabel: String = HomeDemoData.todayLabel(),
+    /** 방 벽의 액자를 눌렀을 때. 도감으로 들어간다. */
+    onOpenDex: (() -> Unit)? = null,
 ) {
     var topTab by rememberSaveable { mutableStateOf(TopTab.Home) }
     var bottomTab by rememberSaveable { mutableStateOf(BottomTab.Home) }
@@ -131,6 +133,7 @@ fun HomeScreen(
                 onToggleInventory = { inventoryOpen = !inventoryOpen },
                 theme = roomTheme,
                 herd = herd,
+                onOpenDex = onOpenDex,
                 modifier = Modifier.fillMaxWidth().weight(1f),
             )
             // 인벤토리를 방 위에 겹치면 바닥을 가려서 방금 놓은 물건이 안 보인다.
@@ -168,6 +171,7 @@ private fun RoomSection(
     onToggleInventory: () -> Unit,
     theme: RoomTheme,
     herd: com.daengs.app.miniroom.DogHerd,
+    onOpenDex: (() -> Unit)?,
     modifier: Modifier = Modifier,
 ) {
     // 개발자 도구는 **저장하지 않는다.** 실수로 켠 채 배포되면 안 된다.
@@ -198,6 +202,9 @@ private fun RoomSection(
             // 문이 활짝 열린 순간. 산책 게임 화면이 생기면 여기서 넘기면 된다.
             // (CONTEXT.md 4번: 미니룸(홈) -> [방문 클릭] -> 산책 게임)
             onDoorOpened = {},
+            // 벽의 액자 -> 네오 채소 도감. 편집 중에는 안 받는다 — 가구를 옮기다가
+            // 화면이 넘어가면 하던 일을 잃는다.
+            onFrameTap = if (inventoryOpen) null else onOpenDex,
         )
         TodayCard(
             dateLabel = dateLabel,

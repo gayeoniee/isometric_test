@@ -22,9 +22,12 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.input.pointer.pointerInput
 import com.daengs.app.miniroom.art.DoorSpec
+import com.daengs.app.miniroom.art.FrameSpec
 import com.daengs.app.miniroom.art.ItemCatalog
 import com.daengs.app.miniroom.art.footprintFacing
 import com.daengs.app.miniroom.art.drawDoorHint
+import com.daengs.app.miniroom.art.rememberAssetImage
+import com.daengs.app.miniroom.art.drawWallFrame
 import com.daengs.app.miniroom.art.drawDoorOpening
 import com.daengs.app.miniroom.art.drawDeveloperOverlay
 import com.daengs.app.miniroom.art.drawRoomBackground
@@ -62,6 +65,8 @@ fun MiniRoomCanvas(
     frameTimeMs: Long? = null,
     onItemTap: ((PlacedItem) -> Unit)? = null,
     onDoorOpened: (() -> Unit)? = null,
+    /** 벽에 건 액자를 눌렀을 때. 도감으로 들어가는 문이다. */
+    onFrameTap: (() -> Unit)? = null,
     /** 편집 모드에서 빈 곳을 눌렀을 때. 선택 해제용. */
     onEmptyTap: (() -> Unit)? = null,
     doorOpenOverride: Float? = null,
@@ -74,6 +79,11 @@ fun MiniRoomCanvas(
     // 문만 예외로 이 그림에서 오려내 다시 그린다 ([drawDoorOpening]).
     // 테마가 바뀌면 그림 전체가 바뀐다 — 색을 덧칠하는 게 아니라 다른 그림이다.
     val roomImage = ImageBitmap.imageResource(theme.room)
+
+    // 액자 속 그림. 도감 웹 데모의 카드를 그대로 쓴다 — 같은 파일을 리소스로 한 벌 더
+    // 넣지 않으려는 것이다. 작게 그리므로 절반 크기로 읽는다.
+    val framePicture = rememberAssetImage("neo-hologram/art/cabbage-card.webp", sample = 2)
+    val frameCallback by rememberUpdatedState(onFrameTap)
     val measurer = rememberTextMeasurer()
 
     // 0 = 닫힘, 1 = 활짝
@@ -158,7 +168,19 @@ fun MiniRoomCanvas(
                             }
                             return@awaitEachGesture
                         }
-                        // 강아지가 아니면 문만 본다 (가구는 편집 모드에서만)
+                        // 강아지가 아니면 벽에 걸린 것만 본다 (가구는 편집 모드에서만).
+                        // 액자를 먼저 본다. 둘은 안 겹치지만 순서를 정해 둔다.
+                        if (frameCallback != null && FrameSpec.contains(g, down.position)) {
+                            var slid = false
+                            while (true) {
+                                val e = awaitPointerEvent()
+                                val ch = e.changes.firstOrNull { it.id == down.id } ?: break
+                                if ((ch.position - down.position).getDistance() > viewConfiguration.touchSlop) slid = true
+                                if (!ch.pressed) break
+                            }
+                            if (!slid) frameCallback?.invoke()
+                            return@awaitEachGesture
+                        }
                         if (DoorSpec.contains(g, down.position)) {
                             var slid = false
                             while (true) {
@@ -242,6 +264,7 @@ fun MiniRoomCanvas(
                 drawRoomBackground(g, roomImage)
                 drawDoorOpening(g, roomImage, open)
                 drawDoorHint(g, pulse)
+                drawWallFrame(g, framePicture, pulse)
 
                 if (d != null) {
                     val dragged = state.items.firstOrNull { it.instanceId == d.instanceId }
