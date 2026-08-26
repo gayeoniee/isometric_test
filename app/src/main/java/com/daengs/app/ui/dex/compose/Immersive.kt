@@ -1,0 +1,175 @@
+package com.daengs.app.ui.dex.compose
+
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.runtime.Immutable
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
+import kotlin.math.PI
+import kotlin.math.sin
+
+// ---------------------------------------------------------------------------
+// ☆☆☆ 이머시브 — 꾹 누르면 카드 "안으로" 들어간다
+//
+// 웹판 `immersive.css` + `immersive.mjs` 를 옮긴 것이다. 저쪽이 맨 위에 적어 둔
+// 전제를 그대로 이어받는다.
+//
+// > 정직하게 적어 둘 것 — 진짜 이머시브 카드는 원화를 레이어로 나눠 그린다.
+// > 여기 art/*.webp 는 프레임까지 인쇄된 완성 카드 한 장이라 배추만 오려낼 수가 없다.
+//
+// 그래서 배추 카드만 **레이어 원화 세 장**을 따로 갖는다.
+//
+//   cabbage-back.webp     프레임 없는 배경
+//   cabbage-subject.webp  알파가 있는 주인공(누끼)
+//   cabbage-card.webp     진입 때만 쓰는 카드 (모서리 바깥이 알파)
+//
+// ## 평면 일곱 장
+//
+// 뒤에서 앞으로 갈수록 많이 움직인다. 이 차이가 깊이를 만든다 — 숫자는 저쪽
+// `--par` 값 그대로다.
+//
+//   하늘 5 · 환경 12 · 빛줄기 18 · 먼지 30 · 주인공 52 · 자막 30 · 앞잎 100
+//
+// 이슬만 0 이다. 카메라 유리에 맺힌 것이라 화면과 같이 움직이면 안 된다.
+// ---------------------------------------------------------------------------
+
+/** 꾹 누르는 시간(ms). 저쪽 `HOLD_MS`. */
+const val IMMERSIVE_HOLD_MS = 520
+
+/** 이만큼(px) 움직이면 꾹이 아니라 스크롤로 본다. 저쪽 `SLOP`. */
+const val IMMERSIVE_SLOP = 10f
+
+/**
+ * 배추 카드의 무대 값. 저쪽 `cards.mjs` 의 `scene` 을 옮겼다.
+ *
+ * [fit] 이 특히 중요하다 — **원본 카드 그림 안에서 누끼가 차지하는 자리**(카드 크기
+ * 대비 %)다. 들어갈 때 카드와 누끼를 겹쳐 놓고 카드만 지우는데, 이 값이 맞아야 틀이
+ * 녹는 동안 캐릭터가 한 픽셀도 안 움직인다.
+ */
+@Immutable
+data class ImmersiveScene(
+    val place: String = "이슬 맺힌 텃밭 · 해 뜨기 직전",
+    val back: String = "neo-hologram/art/cabbage-back.webp",
+    val subject: String = "neo-hologram/art/cabbage-subject.webp",
+    val card: String = "neo-hologram/art/cabbage-card.webp",
+    val fit: Fit = Fit(6.06f, 14.15f, 87.43f, 62.70f),
+    val motes: Int = 52,
+    val leaves: Int = 7,
+    val dew: Int = 15,
+    val accent: Color = Color(0xFF8FD94A),
+    val accent2: Color = Color(0xFFD8F07A),
+) {
+    @Immutable
+    data class Fit(val x: Float, val y: Float, val w: Float, val h: Float)
+}
+
+/** No.01 배추만 이머시브다. 저쪽도 지금은 한 장뿐이다. */
+val CABBAGE_SCENE = ImmersiveScene()
+
+/**
+ * 평면 하나가 시선에 따라 얼마나 밀리는가.
+ *
+ * 저쪽은 `translate3d(px * par, py * par * .68, 0)` 이다 — 세로는 가로의 68% 만
+ * 움직인다. 사람이 폰을 기울일 때 좌우가 더 크게 느껴지기 때문이다.
+ */
+fun parallax(aim: Offset, par: Float): Offset =
+    Offset((aim.x - 0.5f) * 2f * par, (aim.y - 0.5f) * 2f * par * 0.68f)
+
+/** 저쪽 `--par` 값. 뒤에서 앞으로. */
+object Par {
+    const val SKY = 5f
+    const val AMBIENT = 12f
+    const val RAYS = 18f
+    const val MOTES = 30f
+    const val SUBJECT = 52f
+    const val HUD = 30f
+    const val FORE = 100f
+
+    /** 이슬만 0 이다 — 카메라 유리에 맺힌 것이라 화면을 따라 움직이면 안 된다. */
+    const val DEW = 0f
+}
+
+/**
+ * 씨를 고정한 난수.
+ *
+ * **장면은 매번 같은 모양이어야 한다.** 열 때마다 먼지가 다른 자리에 있으면 카드가
+ * 아니라 스크린세이버가 된다 — 저쪽 주석 그대로다. 그래서 카드 id 로 씨를 만든다.
+ */
+class SceneRng(seed: Int) {
+    private var s: Int = if (seed == 0) 1 else seed
+
+    fun next(): Float {
+        s = s * 1664525 + 1013904223
+        return ((s.toLong() and 0xFFFFFFFFL).toFloat() / 4294967296f)
+    }
+
+    fun range(from: Float, to: Float) = from + next() * (to - from)
+}
+
+fun seedOf(text: String): Int = text.fold(7) { h, c -> h * 31 + c.code }
+
+/** 떠다니는 초록빛 한 알. */
+@Immutable
+data class Mote(val at: Offset, val r: Float, val alpha: Float, val phase: Float, val speed: Float)
+
+/** 앞에 크게 흐리게 지나가는 잎. */
+@Immutable
+data class Leaf(val at: Offset, val scale: Float, val rot: Float, val alpha: Float, val phase: Float)
+
+/** 카메라 유리에 맺힌 이슬. */
+@Immutable
+data class Dew(val at: Offset, val r: Float, val alpha: Float, val runs: Boolean)
+
+/**
+ * 장면을 만든다. 같은 [seed] 면 언제나 같은 배치가 나온다.
+ *
+ * 이슬은 **화면 한가운데를 피한다** — 주인공 얼굴에 앉으면 캐릭터가 안 읽힌다
+ * (저쪽 `offCenter`).
+ */
+fun buildScene(scene: ImmersiveScene, seed: Int): SceneParts {
+    val rng = SceneRng(seed)
+    val motes = List(scene.motes) {
+        Mote(
+            at = Offset(rng.next(), rng.next()),
+            r = rng.range(0.8f, 2.6f),
+            alpha = rng.range(0.15f, 0.55f),
+            phase = rng.range(0f, (2 * PI).toFloat()),
+            speed = rng.range(0.15f, 0.5f),
+        )
+    }
+    val leaves = List(scene.leaves) {
+        Leaf(
+            at = Offset(rng.range(-0.15f, 1.15f), rng.range(-0.1f, 1.1f)),
+            scale = rng.range(0.5f, 1.4f),
+            rot = rng.range(-40f, 40f),
+            alpha = rng.range(0.10f, 0.28f),
+            phase = rng.range(0f, (2 * PI).toFloat()),
+        )
+    }
+    val dew = List(scene.dew) {
+        // 가운데를 피해 자리를 잡는다
+        var p = Offset(rng.next(), rng.next())
+        var guard = 0
+        while (kotlin.math.hypot(p.x - 0.5f, p.y - 0.45f) < 0.26f && guard++ < 8) {
+            p = Offset(rng.next(), rng.next())
+        }
+        Dew(at = p, r = rng.range(2.5f, 7f), alpha = rng.range(0.18f, 0.5f), runs = it < 3)
+    }
+    return SceneParts(motes, leaves, dew)
+}
+
+@Immutable
+data class SceneParts(val motes: List<Mote>, val leaves: List<Leaf>, val dew: List<Dew>)
+
+/** 먼지가 떠다니는 위치. 시간에 따라 아주 느리게 흔들린다. */
+fun Mote.drift(timeMs: Long, size: Size): Offset {
+    val t = timeMs / 1000f * speed
+    return Offset(
+        (at.x + sin(t + phase) * 0.01f) * size.width,
+        (at.y + sin(t * 0.7f + phase) * 0.014f) * size.height,
+    )
+}

@@ -16,6 +16,7 @@ import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
+import kotlinx.coroutines.withTimeoutOrNull
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import kotlin.math.roundToInt
@@ -90,9 +91,14 @@ fun HoloCard(
  * @param onTap 움직이지 않고 뗐을 때. 확대 열기·설명 열기에 쓴다
  */
 @Composable
-fun rememberRubState(onTap: (() -> Unit)? = null): RubState {
+fun rememberRubState(
+    onTap: (() -> Unit)? = null,
+    /** 꾹 누르면 부른다. null 이면 게이지도 안 돈다. */
+    onHold: (() -> Unit)? = null,
+): RubState {
     val state = remember { RubState() }
     state.onTap = onTap
+    state.onHold = onHold
     return state
 }
 
@@ -100,7 +106,17 @@ class RubState {
     var input by mutableStateOf(FoilInput.Idle)
         internal set
 
+    /**
+     * 꾹 누르는 중이면 0~1. 게이지를 그리는 데 쓴다.
+     *
+     * **"꾹 누르면 뭔가 된다"는 건 눌러보기 전엔 알 수가 없다.** 누르는 동안 테두리가
+     * 차오르지 않으면 카드가 멈춘 줄 안다 (저쪽 immersive.css 주석).
+     */
+    var hold by mutableStateOf(0f)
+        internal set
+
     internal var onTap: (() -> Unit)? = null
+    internal var onHold: (() -> Unit)? = null
 
     internal fun move(p: Offset, size: androidx.compose.ui.geometry.Size) {
         val n = Offset((p.x / size.width).coerceIn(0f, 1f), (p.y / size.height).coerceIn(0f, 1f))
@@ -123,19 +139,41 @@ fun Modifier.rubbable(state: RubState, consume: Boolean = true): Modifier = this
     awaitEachGesture {
         val down = awaitFirstDown(requireUnconsumed = false)
         state.move(down.position, size.toSize())
+        val startedAt = System.currentTimeMillis()
         var moved = false
+        var fired = false
         while (true) {
-            val event = awaitPointerEvent()
-            val change = event.changes.firstOrNull { it.id == down.id } ?: break
-            if ((change.position - down.position).getDistance() > viewConfiguration.touchSlop) moved = true
+            // 꾹 누르기를 재려면 기다리는 동안에도 깨어 있어야 한다. 짧게 끊어 받는다.
+            val event = withTimeoutOrNull(16) { awaitPointerEvent() }
+            val change = event?.changes?.firstOrNull { it.id == down.id }
+
+            if (state.onHold != null && !moved && !fired) {
+                val held = (System.currentTimeMillis() - startedAt).toFloat() / IMMERSIVE_HOLD_MS
+                state.hold = held.coerceIn(0f, 1f)
+                if (held >= 1f) {
+                    fired = true
+                    state.hold = 0f
+                    state.release()
+                    state.onHold?.invoke()
+                    return@awaitEachGesture
+                }
+            }
+
+            if (change == null) continue
+            // 저쪽 SLOP. 이만큼 움직이면 꾹이 아니라 쓸기로 본다 — 스크롤을 막지 않는다.
+            if ((change.position - down.position).getDistance() > IMMERSIVE_SLOP) {
+                moved = true
+                state.hold = 0f
+            }
             if (moved) {
                 state.move(change.position, size.toSize())
                 if (consume) change.consume()
             }
             if (!change.pressed) break
         }
+        state.hold = 0f
         state.release()
-        if (!moved) state.onTap?.invoke()
+        if (!moved && !fired) state.onTap?.invoke()
     }
 }
 

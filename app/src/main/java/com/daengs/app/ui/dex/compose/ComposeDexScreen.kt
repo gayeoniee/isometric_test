@@ -4,6 +4,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -36,6 +37,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -69,13 +71,27 @@ private const val SLOT_RATIO = 1.25f
 @Composable
 fun ComposeDexScreen(onClose: () -> Unit, modifier: Modifier = Modifier) {
     var opened by remember { mutableStateOf<Int?>(null) }
+    var immersive by remember { mutableStateOf(false) }
 
     BackHandler {
-        if (opened != null) opened = null else onClose()
+        when {
+            immersive -> immersive = false
+            opened != null -> opened = null
+            else -> onClose()
+        }
+    }
+
+    if (immersive) {
+        ImmersiveScreen(onClose = { immersive = false })
+        return
     }
 
     Box(modifier.fillMaxSize().background(DexBg)) {
-        DexGrid(onOpen = { opened = it }, onClose = onClose)
+        DexGrid(
+            onOpen = { opened = it },
+            onClose = onClose,
+            onImmersive = { immersive = true },
+        )
 
         AnimatedVisibility(
             visible = opened != null,
@@ -91,7 +107,7 @@ fun ComposeDexScreen(onClose: () -> Unit, modifier: Modifier = Modifier) {
 // -- 그리드 -----------------------------------------------------------------
 
 @Composable
-private fun DexGrid(onOpen: (Int) -> Unit, onClose: () -> Unit) {
+private fun DexGrid(onOpen: (Int) -> Unit, onClose: () -> Unit, onImmersive: () -> Unit) {
     LazyVerticalGrid(
         // 두 칸. 웹판에서 한 칸이면 카드가 화면을 꽉 채워 무거웠다.
         columns = GridCells.Fixed(2),
@@ -104,7 +120,12 @@ private fun DexGrid(onOpen: (Int) -> Unit, onClose: () -> Unit) {
             DexHeader(onClose = onClose)
         }
         items(DEX_CARDS) { card ->
-            GridCard(card = card, onOpen = { onOpen(DEX_CARDS.indexOf(card)) })
+            GridCard(
+                card = card,
+                onOpen = { onOpen(DEX_CARDS.indexOf(card)) },
+                // No.01 배추만 이머시브다. 저쪽도 지금은 한 장뿐이다.
+                onImmersive = if (card.no == 1) onImmersive else null,
+            )
         }
     }
 }
@@ -136,10 +157,10 @@ private fun DexHeader(onClose: () -> Unit) {
 }
 
 @Composable
-private fun GridCard(card: DexCard, onOpen: () -> Unit) {
+private fun GridCard(card: DexCard, onOpen: () -> Unit, onImmersive: (() -> Unit)?) {
     // 그리드에서는 작게 그리므로 절반 크기로 읽는다. 12장을 원본으로 들면 55MB 다.
     val art = rememberAssetImage(card.art, sample = 2)
-    val rub = rememberRubState(onTap = onOpen)
+    val rub = rememberRubState(onTap = onOpen, onHold = onImmersive)
 
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         // **카드 높이를 칸마다 똑같이 맞춘다.** 그림 비율이 두 종류라(0.72 와 0.80)
@@ -160,8 +181,35 @@ private fun GridCard(card: DexCard, onOpen: () -> Unit) {
                     // 안 움직인다.
                     .rubbable(rub, consume = false),
             )
+            // 꾹 누르는 동안 차오르는 테두리.
+            // **없으면 카드가 멈춘 줄 안다** — 꾹 누르기는 눌러보기 전엔 알 수가 없다.
+            if (rub.hold > 0f) {
+                Canvas(Modifier.matchParentSize()) {
+                    drawArc(
+                        color = card.accent,
+                        startAngle = -90f,
+                        sweepAngle = 360f * rub.hold,
+                        useCenter = false,
+                        style = Stroke(width = 3.dp.toPx()),
+                    )
+                }
+            }
         }
         Spacer(Modifier.height(8.dp))
+        if (onImmersive != null) {
+            // 꾹 누르기는 발견해야 아는 손짓이라 유일한 길이면 안 된다 (저쪽 주석).
+            Text(
+                "★★★ 꾹 눌러서 들어가기",
+                color = TextDark,
+                fontSize = 10.sp,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(card.accent.copy(alpha = 0.25f))
+                    .clickable(onClick = onImmersive)
+                    .padding(horizontal = 8.dp, vertical = 3.dp),
+            )
+            Spacer(Modifier.height(4.dp))
+        }
         Text("No. %02d".format(card.no), color = TextMuted, fontSize = 10.sp)
         Text(card.name, color = TextDark, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
         Text(card.statLine, color = TextMuted, fontSize = 11.sp, textAlign = TextAlign.Center)
