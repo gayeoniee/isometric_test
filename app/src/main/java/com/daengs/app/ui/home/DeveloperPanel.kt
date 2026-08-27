@@ -4,11 +4,14 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -22,6 +25,7 @@ import com.daengs.app.miniroom.DogHerd
 import com.daengs.app.miniroom.MiniRoomState
 import com.daengs.app.miniroom.RoomSpec
 import com.daengs.app.miniroom.art.DogBreed
+import com.daengs.app.ui.DogAvatar
 
 // ---------------------------------------------------------------------------
 // 개발자 패널
@@ -71,6 +75,8 @@ fun DeveloperPanel(
     herd: DogHerd?,
     breedOverride: DogBreed?,
     onPickBreed: (DogBreed?) -> Unit,
+    profileBreed: DogBreed,
+    onPickProfile: (DogBreed) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -99,6 +105,36 @@ fun DeveloperPanel(
                 BreedChip(b.label, breedOverride == b) { onPickBreed(b) }
             }
         }
+
+        // 프로필은 방 안 견종과 **따로** 고른다. 상단바 얼굴만 바꿔 보고 싶을 때가
+        // 있고, 반대로 방에 시바를 풀어둔 채 프로필은 비글로 두고 볼 때도 있다.
+        //
+        // 글자 칩을 한 줄 더 붙이지 않고 얼굴을 늘어놓는다. 25개를 글자로 훑으면
+        // 원하는 걸 찾기까지 한참 밀어야 하는데, 얼굴은 한눈에 보인다. 어차피
+        // 여기서 고르는 것이 그 얼굴이라 미리보기를 겸한다.
+        Text("프로필  ${profileBreed.label}", color = PanelDim, fontSize = 9.sp)
+        Row(
+            Modifier.horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(3.dp),
+        ) {
+            DogBreed.ALL.forEach { b ->
+                ProfilePick(b, profileBreed == b) { onPickProfile(b) }
+            }
+        }
+    }
+}
+
+/** 얼굴 하나. 고른 것은 뒤에 깔린 원이 테를 두른 것처럼 보인다. */
+@Composable
+private fun ProfilePick(breed: DogBreed, selected: Boolean, onClick: () -> Unit) {
+    Box(
+        Modifier
+            .clip(CircleShape)
+            .background(if (selected) PanelPick else Color.Transparent)
+            .clickable(onClick = onClick)
+            .padding(2.dp),
+    ) {
+        DogAvatar(breed, Modifier.size(26.dp))
     }
 }
 

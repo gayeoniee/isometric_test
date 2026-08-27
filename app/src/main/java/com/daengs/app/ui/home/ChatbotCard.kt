@@ -35,6 +35,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.daengs.app.ui.DaengsIcon
 import com.daengs.app.ui.DaengsIconView
+import com.daengs.app.miniroom.art.DogBreed
 import com.daengs.app.ui.DogAvatar
 import com.daengs.app.ui.theme.CardWhite
 import com.daengs.app.ui.theme.DaengPink
@@ -53,7 +54,10 @@ import com.daengs.app.ui.theme.TextMuted
  * 반응이 있어야 화면이 죽어 보이지 않는다.
  */
 @Composable
-fun ChatbotCard(modifier: Modifier = Modifier) {
+fun ChatbotCard(
+    modifier: Modifier = Modifier,
+    avatar: DogBreed = HomeDemoData.DOG_BREED,
+) {
     var text by rememberSaveable { mutableStateOf("") }
 
     Surface(
@@ -82,7 +86,7 @@ fun ChatbotCard(modifier: Modifier = Modifier) {
             Spacer(Modifier.height(9.dp))
 
             Row(verticalAlignment = Alignment.CenterVertically) {
-                DogAvatar(HomeDemoData.DOG_BREED, Modifier.size(40.dp))
+                DogAvatar(avatar, Modifier.size(40.dp))
                 Spacer(Modifier.width(10.dp))
 
                 Box(

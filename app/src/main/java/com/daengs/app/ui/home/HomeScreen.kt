@@ -71,6 +71,13 @@ fun HomeScreen(
     var bottomTab by rememberSaveable { mutableStateOf(BottomTab.Home) }
     var inventoryOpen by rememberSaveable { mutableStateOf(false) }
 
+    // 프로필 얼굴의 견종. 개발자 패널에서 바꿀 수 있다.
+    //
+    // 상단바와 챗봇 카드 둘 다 이걸 쓴다. 그 둘은 방 밖에 있어서 상태를
+    // 방 안에 두면 닿지 않는다 — 그래서 견종 고르기(방 안)와 달리 여기 있다.
+    // rememberSaveable 이 아니다 — 개발자 도구로 바꿔 본 것은 앱을 다시 켜면 지워진다.
+    var profileBreed by remember { mutableStateOf(HomeDemoData.DOG_BREED) }
+
     val herd = rememberDogHerd(RoomDefaults.DOG_COUNT)
     val store = rememberRoomStore()
     // 테마는 id 만 저장한다 — 원시값이라 화면 회전에도 그대로 남는다
@@ -105,6 +112,7 @@ fun HomeScreen(
                     onSelect = { topTab = it },
                     onBell = {},
                     onProfile = {},
+                    avatar = profileBreed,
                 )
             }
         },
@@ -134,6 +142,8 @@ fun HomeScreen(
                 theme = roomTheme,
                 herd = herd,
                 onOpenDex = onOpenDex,
+                profileBreed = profileBreed,
+                onPickProfile = { profileBreed = it },
                 modifier = Modifier.fillMaxWidth().weight(1f),
             )
             // 인벤토리를 방 위에 겹치면 바닥을 가려서 방금 놓은 물건이 안 보인다.
@@ -152,7 +162,7 @@ fun HomeScreen(
                     modifier = slot,
                 )
             } else {
-                ChatbotCard(slot)
+                ChatbotCard(slot, avatar = profileBreed)
             }
             Spacer(Modifier.height(10.dp))
             WalkSummaryCard(Modifier.padding(horizontal = 14.dp))
@@ -172,6 +182,8 @@ private fun RoomSection(
     theme: RoomTheme,
     herd: com.daengs.app.miniroom.DogHerd,
     onOpenDex: (() -> Unit)?,
+    profileBreed: DogBreed,
+    onPickProfile: (DogBreed) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     // 개발자 도구는 **저장하지 않는다.** 실수로 켠 채 배포되면 안 된다.
@@ -231,6 +243,8 @@ private fun RoomSection(
                     breedOverride = it
                     herd.setBreedOverride(it)
                 },
+                profileBreed = profileBreed,
+                onPickProfile = onPickProfile,
                 modifier = Modifier.align(Alignment.BottomStart).padding(start = 10.dp, bottom = 6.dp),
             )
         }

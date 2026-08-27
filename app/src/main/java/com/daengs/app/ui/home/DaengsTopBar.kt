@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.daengs.app.ui.DaengsIcon
 import com.daengs.app.ui.DaengsIconView
+import com.daengs.app.miniroom.art.DogBreed
 import com.daengs.app.ui.DogAvatar
 import com.daengs.app.ui.theme.CreamBg
 import com.daengs.app.ui.theme.DaengPink
@@ -43,6 +44,7 @@ fun DaengsTopBar(
     onSelect: (TopTab) -> Unit,
     onBell: () -> Unit,
     onProfile: () -> Unit,
+    avatar: DogBreed = HomeDemoData.DOG_BREED,
     modifier: Modifier = Modifier,
 ) {
     Row(
@@ -79,7 +81,7 @@ fun DaengsTopBar(
                 .padding(2.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            DogAvatar(HomeDemoData.DOG_BREED, Modifier.size(32.dp))
+            DogAvatar(avatar, Modifier.size(32.dp))
             DaengsIconView(DaengsIcon.CaretDown, Modifier.size(15.dp), tint = TextMuted)
         }
     }
