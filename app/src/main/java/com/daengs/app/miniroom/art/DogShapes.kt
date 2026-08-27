@@ -82,44 +82,24 @@ enum class DogBreed(
     private val refSpeed: Float,
 ) {
 
-    TOY_POODLE(
-        "dog_toy_poodle", "토이푸들", R.drawable.dog_toy_poodle,
-        visualWidth = 12.0f, refBodyRadius = 0.5f, refSpeed = 0.5f,
-    ),
-
     BEAGLE(
         "dog_beagle", "비글", R.drawable.dog_beagle,
         visualWidth = 13.0f, refBodyRadius = 0.58f, refSpeed = 0.54f,
     ),
 
-    BICHON_FRISE(
-        "dog_bichon_frise", "비숑프리제", R.drawable.dog_bichon_frise,
-        visualWidth = 11.5f, refBodyRadius = 0.48f, refSpeed = 0.52f,
+    TOY_POODLE_SILVER(
+        "dog_toy_poodle_silver", "실버 푸들", R.drawable.dog_toy_poodle_silver,
+        visualWidth = 12.0f, refBodyRadius = 0.5f, refSpeed = 0.5f,
     ),
 
-    BORDER_COLLIE(
-        "dog_border_collie", "보더콜리", R.drawable.dog_border_collie,
-        visualWidth = 15.5f, refBodyRadius = 0.68f, refSpeed = 0.59f,
+    TOY_POODLE_LIGHT_BROWN(
+        "dog_toy_poodle_light_brown", "연갈색 푸들", R.drawable.dog_toy_poodle_light_brown,
+        visualWidth = 12.0f, refBodyRadius = 0.5f, refSpeed = 0.5f,
     ),
 
-    CHIHUAHUA(
-        "dog_chihuahua", "치와와", R.drawable.dog_chihuahua,
-        visualWidth = 9.5f, refBodyRadius = 0.42f, refSpeed = 0.61f,
-    ),
-
-    FRENCH_BULLDOG(
-        "dog_french_bulldog", "프렌치불독", R.drawable.dog_french_bulldog,
-        visualWidth = 12.0f, refBodyRadius = 0.55f, refSpeed = 0.47f,
-    ),
-
-    JINDO(
-        "dog_jindo", "진돗개", R.drawable.dog_jindo,
-        visualWidth = 14.5f, refBodyRadius = 0.64f, refSpeed = 0.54f,
-    ),
-
-    LABRADOR_RETRIEVER(
-        "dog_labrador_retriever", "래브라도 리트리버", R.drawable.dog_labrador_retriever,
-        visualWidth = 16.5f, refBodyRadius = 0.75f, refSpeed = 0.48f,
+    TOY_POODLE_CHOCOLATE(
+        "dog_toy_poodle_chocolate", "초코 푸들", R.drawable.dog_toy_poodle_chocolate,
+        visualWidth = 12.0f, refBodyRadius = 0.5f, refSpeed = 0.5f,
     ),
 
     MALTESE(
@@ -127,9 +107,94 @@ enum class DogBreed(
         visualWidth = 11.0f, refBodyRadius = 0.46f, refSpeed = 0.53f,
     ),
 
-    POMERANIAN(
-        "dog_pomeranian", "포메라니안", R.drawable.dog_pomeranian,
+    YORKSHIRE_TERRIER(
+        "dog_yorkshire_terrier", "요크셔테리어", R.drawable.dog_yorkshire_terrier,
+        visualWidth = 10.5f, refBodyRadius = 0.45f, refSpeed = 0.57f,
+    ),
+
+    CHIHUAHUA(
+        "dog_chihuahua", "치와와", R.drawable.dog_chihuahua,
+        visualWidth = 9.5f, refBodyRadius = 0.42f, refSpeed = 0.61f,
+    ),
+
+    BICHON_FRISE(
+        "dog_bichon_frise", "비숑프리제", R.drawable.dog_bichon_frise,
+        visualWidth = 11.5f, refBodyRadius = 0.48f, refSpeed = 0.52f,
+    ),
+
+    LABRADOR_RETRIEVER(
+        "dog_labrador_retriever", "래브라도 리트리버", R.drawable.dog_labrador_retriever,
+        visualWidth = 16.5f, refBodyRadius = 0.75f, refSpeed = 0.48f,
+    ),
+
+    JINDO(
+        "dog_jindo", "진돗개", R.drawable.dog_jindo,
+        visualWidth = 14.5f, refBodyRadius = 0.64f, refSpeed = 0.54f,
+    ),
+
+    SHIBA_INU_BLACK(
+        "dog_shiba_inu_black", "검정 시바", R.drawable.dog_shiba_inu_black,
+        visualWidth = 13.5f, refBodyRadius = 0.59f, refSpeed = 0.56f,
+    ),
+
+    SHIBA_INU_BEIGE(
+        "dog_shiba_inu_beige", "베이지 시바", R.drawable.dog_shiba_inu_beige,
+        visualWidth = 13.5f, refBodyRadius = 0.59f, refSpeed = 0.56f,
+    ),
+
+    SHIBA_INU_ORANGE(
+        "dog_shiba_inu_orange", "오렌지 시바", R.drawable.dog_shiba_inu_orange,
+        visualWidth = 13.5f, refBodyRadius = 0.59f, refSpeed = 0.56f,
+    ),
+
+    SIBERIAN_HUSKY(
+        "dog_siberian_husky", "시베리안 허스키", R.drawable.dog_siberian_husky,
+        visualWidth = 16.0f, refBodyRadius = 0.72f, refSpeed = 0.52f,
+    ),
+
+    POMERANIAN_BLACK_TAN(
+        "dog_pomeranian_black_tan", "블랙탄 포메라니안", R.drawable.dog_pomeranian_black_tan,
         visualWidth = 11.5f, refBodyRadius = 0.46f, refSpeed = 0.57f,
+    ),
+
+    POMERANIAN_BEIGE(
+        "dog_pomeranian_beige", "베이지 포메라니안", R.drawable.dog_pomeranian_beige,
+        visualWidth = 11.5f, refBodyRadius = 0.46f, refSpeed = 0.57f,
+    ),
+
+    POMERANIAN_WHITE(
+        "dog_pomeranian_white", "흰색 포메라니안", R.drawable.dog_pomeranian_white,
+        visualWidth = 11.5f, refBodyRadius = 0.46f, refSpeed = 0.57f,
+    ),
+
+    BORDER_COLLIE(
+        "dog_border_collie", "보더콜리", R.drawable.dog_border_collie,
+        visualWidth = 15.5f, refBodyRadius = 0.68f, refSpeed = 0.59f,
+    ),
+
+    WELSH_CORGI(
+        "dog_welsh_corgi", "웰시코기", R.drawable.dog_welsh_corgi,
+        visualWidth = 14.8f, refBodyRadius = 0.65f, refSpeed = 0.54f,
+    ),
+
+    DACHSHUND_SHORT_BROWN(
+        "dog_dachshund_short_brown", "단모 갈색 닥스훈트", R.drawable.dog_dachshund_short_brown,
+        visualWidth = 16.5f, refBodyRadius = 0.67f, refSpeed = 0.52f,
+    ),
+
+    DACHSHUND_SHORT_BLACK(
+        "dog_dachshund_short_black", "단모 검정 닥스훈트", R.drawable.dog_dachshund_short_black,
+        visualWidth = 16.5f, refBodyRadius = 0.67f, refSpeed = 0.52f,
+    ),
+
+    DACHSHUND_LONG_BEIGE(
+        "dog_dachshund_long_beige", "장모 베이지 닥스훈트", R.drawable.dog_dachshund_long_beige,
+        visualWidth = 17.0f, refBodyRadius = 0.69f, refSpeed = 0.5f,
+    ),
+
+    FRENCH_BULLDOG(
+        "dog_french_bulldog", "프렌치불독", R.drawable.dog_french_bulldog,
+        visualWidth = 12.0f, refBodyRadius = 0.55f, refSpeed = 0.47f,
     ),
 
     PUG(
@@ -140,26 +205,6 @@ enum class DogBreed(
     SCHNAUZER(
         "dog_schnauzer", "슈나우저", R.drawable.dog_schnauzer,
         visualWidth = 12.5f, refBodyRadius = 0.54f, refSpeed = 0.52f,
-    ),
-
-    SHIBA_INU(
-        "dog_shiba_inu", "시바견", R.drawable.dog_shiba_inu,
-        visualWidth = 13.5f, refBodyRadius = 0.59f, refSpeed = 0.56f,
-    ),
-
-    SIBERIAN_HUSKY(
-        "dog_siberian_husky", "시베리안 허스키", R.drawable.dog_siberian_husky,
-        visualWidth = 16.0f, refBodyRadius = 0.72f, refSpeed = 0.52f,
-    ),
-
-    WELSH_CORGI(
-        "dog_welsh_corgi", "웰시코기", R.drawable.dog_welsh_corgi,
-        visualWidth = 13.5f, refBodyRadius = 0.62f, refSpeed = 0.54f,
-    ),
-
-    YORKSHIRE_TERRIER(
-        "dog_yorkshire_terrier", "요크셔테리어", R.drawable.dog_yorkshire_terrier,
-        visualWidth = 10.5f, refBodyRadius = 0.45f, refSpeed = 0.57f,
     );
 
     /**

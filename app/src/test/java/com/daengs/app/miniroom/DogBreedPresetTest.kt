@@ -26,8 +26,8 @@ class DogBreedPresetTest {
         assertTrue("전 견종이 같은 폭이면 견종 구분이 안 된다", widths.size > 1)
         assertEquals("가장 작은 견종은 치와와", 9.5f, DogBreed.ALL.minOf { it.visualWidth }, 0.001f)
         assertEquals(
-            "가장 큰 견종은 래브라도",
-            16.5f,
+            "가장 큰 견종은 장모 닥스훈트",
+            17f,
             DogBreed.ALL.maxOf { it.visualWidth },
             0.001f,
         )
@@ -51,6 +51,7 @@ class DogBreedPresetTest {
         assertEquals(0.61f * ratio, DogBreed.CHIHUAHUA.speed, 0.0001f)
         assertEquals(0.75f * ratio, DogBreed.LABRADOR_RETRIEVER.bodyRadius, 0.0001f)
         assertEquals(0.48f * ratio, DogBreed.LABRADOR_RETRIEVER.speed, 0.0001f)
+        assertEquals(0.69f * ratio, DogBreed.DACHSHUND_LONG_BEIGE.bodyRadius, 0.0001f)
     }
 
     /**
@@ -62,11 +63,34 @@ class DogBreedPresetTest {
     @Test
     fun `털이 부푼 견종은 덩치보다 반경이 작다`() {
         // 포메(11.5%)와 퍼그(11.5%)는 폭이 같지만 반경이 다르다
-        assertEquals(DogBreed.POMERANIAN.visualWidth, DogBreed.PUG.visualWidth, 0.001f)
+        assertEquals(DogBreed.POMERANIAN_BEIGE.visualWidth, DogBreed.PUG.visualWidth, 0.001f)
         assertTrue(
             "폭이 같아도 반경까지 같으면 폭에서 반경을 계산하고 있는 것이다",
-            DogBreed.POMERANIAN.bodyRadius < DogBreed.PUG.bodyRadius,
+            DogBreed.POMERANIAN_BEIGE.bodyRadius < DogBreed.PUG.bodyRadius,
         )
+    }
+
+    /**
+     * 색만 다른 변형은 **덩치가 같아야 한다.**
+     *
+     * 시바 세 색·포메 세 색·푸들 세 색은 같은 그림을 리컬러한 것이라 실루엣이 같다.
+     * 하나만 값이 어긋나면 같은 견종인데 크기가 달라 보인다.
+     */
+    @Test
+    fun `색 변형끼리는 덩치가 같다`() {
+        listOf(
+            "시바" to listOf(DogBreed.SHIBA_INU_BLACK, DogBreed.SHIBA_INU_BEIGE, DogBreed.SHIBA_INU_ORANGE),
+            "포메" to listOf(DogBreed.POMERANIAN_BLACK_TAN, DogBreed.POMERANIAN_BEIGE, DogBreed.POMERANIAN_WHITE),
+            "푸들" to listOf(
+                DogBreed.TOY_POODLE_SILVER,
+                DogBreed.TOY_POODLE_LIGHT_BROWN,
+                DogBreed.TOY_POODLE_CHOCOLATE,
+            ),
+        ).forEach { (name, group) ->
+            assertEquals("$name 폭", 1, group.map { it.visualWidth }.distinct().size)
+            assertEquals("$name 반경", 1, group.map { it.bodyRadius }.distinct().size)
+            assertEquals("$name 속도", 1, group.map { it.speed }.distinct().size)
+        }
     }
 
     /**
