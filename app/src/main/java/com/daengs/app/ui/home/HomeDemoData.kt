@@ -1,5 +1,6 @@
 package com.daengs.app.ui.home
 
+import com.daengs.app.miniroom.art.DogBreed
 import com.daengs.app.ui.DaengsIcon
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -12,6 +13,15 @@ import java.util.Locale
 object HomeDemoData {
 
     const val DOG_NAME = "노을"
+
+    /**
+     * 대표 견종. 프로필 얼굴이 이걸 따른다.
+     *
+     * 사용자가 견종을 고르는 화면이 아직 없어서 여기 하나로 박아둔다.
+     * [DogBreed.ALL] 첫 항목이라 방에 먼저 들어오는 개와도 같다 —
+     * 상단바 얼굴과 방 안 강아지가 따로 놓지 않는다.
+     */
+    val DOG_BREED = DogBreed.BEAGLE
     const val ROOM_LABEL = "노을이네"
 
     const val TODAY_NOTE = "산책 가기 좋은 날!"

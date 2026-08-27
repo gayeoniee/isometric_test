@@ -107,4 +107,24 @@ class DogBreedPresetTest {
             biggest * 2f < DogHerd.MIN_DOG_GAP,
         )
     }
+
+    /**
+     * 얼굴 그림이 견종마다 따로 붙었는가.
+     *
+     * 25개 항목에 한 줄씩 손으로 넣은 값이라, 복사하다 한 장을 둘이 나눠 쓰기 쉽다.
+     * 그래도 컴파일은 멀쩡히 되고 엉뚱한 개 얼굴이 뜰 뿐이라 눈으로는 놓친다.
+     */
+    @Test
+    fun `얼굴 그림이 견종마다 다르다`() {
+        assertEquals(
+            "얼굴 그림이 겹친다",
+            DogBreed.ALL.size,
+            DogBreed.ALL.map { it.portraitRes }.distinct().size,
+        )
+        assertTrue("얼굴 그림이 비었다", DogBreed.ALL.all { it.portraitRes != 0 })
+        assertTrue(
+            "얼굴 그림이 걷기 시트와 같다",
+            DogBreed.ALL.all { it.portraitRes != it.sheetRes },
+        )
+    }
 }

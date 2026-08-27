@@ -79,7 +79,7 @@ fun DaengsTopBar(
                 .padding(2.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            DogAvatar(Modifier.size(32.dp))
+            DogAvatar(HomeDemoData.DOG_BREED, Modifier.size(32.dp))
             DaengsIconView(DaengsIcon.CaretDown, Modifier.size(15.dp), tint = TextMuted)
         }
     }

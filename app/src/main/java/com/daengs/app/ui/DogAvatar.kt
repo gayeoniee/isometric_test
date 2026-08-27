@@ -1,54 +1,69 @@
 package com.daengs.app.ui
 
-import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.drawscope.scale
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.daengs.app.ui.theme.PinkFaint
-import com.daengs.app.ui.theme.RoomPalette
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
+import com.daengs.app.miniroom.art.DogBreed
+import com.daengs.app.ui.theme.PinkSoft
 
 /**
  * 강아지 얼굴 아바타.
  *
- * 미니룸 강아지와 같은 색을 쓴다 — 나중에 아바타 스튜디오가 생기면
- * 이 자리에 생성된 이미지를 끼운다.
+ * 한때는 여기서 원과 타원으로 얼굴을 그렸다. 저쪽 레포가 견종마다 얼굴 그림
+ * (`assets/dogs/<견종>/portrait.png`) 을 따로 그려 두면서 그럴 이유가 없어졌다.
+ *
+ * 그림은 **화풍이 방 안 강아지와 다르다.** 방 안은 도트, 이쪽은 사실풍이다.
+ * 저쪽이 처음부터 그렇게 나눠 그렸다. 32dp 까지 줄어드는 자리라 도트로는 눈코가
+ * 뭉개지는데, 사실풍 얼굴은 작아져도 견종이 남는다.
+ *
+ * 원본이 불투명한 정사각형이라 [CircleShape] 로 자르고 테두리를 한 겹 두른다.
+ * 안 두르면 크림색 배경이 밝은 카드 위에서 경계 없이 번진다.
  */
 @Composable
-fun DogAvatar(modifier: Modifier = Modifier) {
-    Canvas(modifier) {
-        val s = size.minDimension / 40f
-        scale(s, s, pivot = Offset.Zero) {
-            drawCircle(PinkFaint, 20f, Offset(20f, 20f))
-
-            // 귀
-            drawOval(RoomPalette.DogEar, Offset(3.5f, 6f), Size(12f, 17f))
-            drawOval(RoomPalette.DogEar, Offset(24.5f, 6f), Size(12f, 17f))
-
-            // 머리
-            drawCircle(RoomPalette.DogBody, 14.5f, Offset(20f, 21f))
-            // 어두운 얼굴 마스크
-            drawOval(RoomPalette.DogFace, Offset(9f, 12.5f), Size(22f, 19f))
-            drawOval(RoomPalette.DogBody.copy(alpha = 0.92f), Offset(15f, 22.5f), Size(10f, 8f))
-
-            // 눈
-            drawCircle(RoomPalette.DogNose, 2.3f, Offset(15.2f, 19.5f))
-            drawCircle(RoomPalette.DogNose, 2.3f, Offset(24.8f, 19.5f))
-            drawCircle(RoomPalette.RugFill, 0.9f, Offset(15.9f, 18.7f))
-            drawCircle(RoomPalette.RugFill, 0.9f, Offset(25.5f, 18.7f))
-
-            // 코
-            drawOval(RoomPalette.DogNose, Offset(17.8f, 23.4f), Size(4.4f, 3.2f))
-        }
-    }
+fun DogAvatar(
+    breed: DogBreed,
+    modifier: Modifier = Modifier,
+) {
+    Image(
+        painter = painterResource(breed.portraitRes),
+        contentDescription = breed.label,
+        contentScale = ContentScale.Crop,
+        modifier = modifier
+            .clip(CircleShape)
+            .border(1.dp, PinkSoft, CircleShape),
+    )
 }
 
 @Preview
 @Composable
 private fun DogAvatarPreview() {
-    DogAvatar(Modifier.size(56.dp))
+    Row {
+        listOf(DogBreed.BEAGLE, DogBreed.SHIBA_INU_BEIGE, DogBreed.BORDER_COLLIE).forEach {
+            DogAvatar(it, Modifier.size(56.dp))
+            Spacer(Modifier.width(6.dp))
+        }
+    }
+}
+
+/** 32dp 은 상단바 크기다. 이만큼 줄여도 견종이 구분되는지 보는 미리보기. */
+@Preview
+@Composable
+private fun DogAvatarTopBarSizePreview() {
+    Row {
+        DogBreed.ALL.take(8).forEach {
+            DogAvatar(it, Modifier.size(32.dp))
+            Spacer(Modifier.width(4.dp))
+        }
+    }
 }

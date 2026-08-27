@@ -70,6 +70,15 @@ enum class DogBreed(
     val label: String,
     @DrawableRes val sheetRes: Int,
     /**
+     * 얼굴 그림. 프로필 아바타처럼 방 밖에서 쓰는 자리용이다.
+     *
+     * 걷기 시트와는 화풍이 다르다 — 시트는 도트이고 이쪽은 사실풍 그림이다.
+     * 저쪽이 그렇게 나눠 그렸고, 작게 띄우는 얼굴은 도트보다 이쪽이 알아보기 쉽다.
+     *
+     * 256x256 불투명이다. 동그럼게 자를 거면 부르는 쪽이 해야 한다.
+     */
+    @DrawableRes val portraitRes: Int,
+    /**
      * 화면에 그릴 폭. **방 그림 폭 대비 %.**
      *
      * 시트 규격(582x568)은 견종이 같아도 그려진 덩치는 제각각이라, 같은 폭으로
@@ -84,126 +93,151 @@ enum class DogBreed(
 
     BEAGLE(
         "dog_beagle", "비글", R.drawable.dog_beagle,
+        portraitRes = R.drawable.dog_beagle_portrait,
         visualWidth = 13.0f, refBodyRadius = 0.58f, refSpeed = 0.54f,
     ),
 
     TOY_POODLE_SILVER(
         "dog_toy_poodle_silver", "실버 푸들", R.drawable.dog_toy_poodle_silver,
+        portraitRes = R.drawable.dog_toy_poodle_silver_portrait,
         visualWidth = 12.0f, refBodyRadius = 0.5f, refSpeed = 0.5f,
     ),
 
     TOY_POODLE_LIGHT_BROWN(
         "dog_toy_poodle_light_brown", "연갈색 푸들", R.drawable.dog_toy_poodle_light_brown,
+        portraitRes = R.drawable.dog_toy_poodle_light_brown_portrait,
         visualWidth = 12.0f, refBodyRadius = 0.5f, refSpeed = 0.5f,
     ),
 
     TOY_POODLE_CHOCOLATE(
         "dog_toy_poodle_chocolate", "초코 푸들", R.drawable.dog_toy_poodle_chocolate,
+        portraitRes = R.drawable.dog_toy_poodle_chocolate_portrait,
         visualWidth = 12.0f, refBodyRadius = 0.5f, refSpeed = 0.5f,
     ),
 
     MALTESE(
         "dog_maltese", "말티즈", R.drawable.dog_maltese,
+        portraitRes = R.drawable.dog_maltese_portrait,
         visualWidth = 11.0f, refBodyRadius = 0.46f, refSpeed = 0.53f,
     ),
 
     YORKSHIRE_TERRIER(
         "dog_yorkshire_terrier", "요크셔테리어", R.drawable.dog_yorkshire_terrier,
+        portraitRes = R.drawable.dog_yorkshire_terrier_portrait,
         visualWidth = 10.5f, refBodyRadius = 0.45f, refSpeed = 0.57f,
     ),
 
     CHIHUAHUA(
         "dog_chihuahua", "치와와", R.drawable.dog_chihuahua,
+        portraitRes = R.drawable.dog_chihuahua_portrait,
         visualWidth = 9.5f, refBodyRadius = 0.42f, refSpeed = 0.61f,
     ),
 
     BICHON_FRISE(
         "dog_bichon_frise", "비숑프리제", R.drawable.dog_bichon_frise,
+        portraitRes = R.drawable.dog_bichon_frise_portrait,
         visualWidth = 11.5f, refBodyRadius = 0.48f, refSpeed = 0.52f,
     ),
 
     LABRADOR_RETRIEVER(
         "dog_labrador_retriever", "래브라도 리트리버", R.drawable.dog_labrador_retriever,
+        portraitRes = R.drawable.dog_labrador_retriever_portrait,
         visualWidth = 16.5f, refBodyRadius = 0.75f, refSpeed = 0.48f,
     ),
 
     JINDO(
         "dog_jindo", "진돗개", R.drawable.dog_jindo,
+        portraitRes = R.drawable.dog_jindo_portrait,
         visualWidth = 14.5f, refBodyRadius = 0.64f, refSpeed = 0.54f,
     ),
 
     SHIBA_INU_BLACK(
         "dog_shiba_inu_black", "검정 시바", R.drawable.dog_shiba_inu_black,
+        portraitRes = R.drawable.dog_shiba_inu_black_portrait,
         visualWidth = 13.5f, refBodyRadius = 0.59f, refSpeed = 0.56f,
     ),
 
     SHIBA_INU_BEIGE(
         "dog_shiba_inu_beige", "베이지 시바", R.drawable.dog_shiba_inu_beige,
+        portraitRes = R.drawable.dog_shiba_inu_beige_portrait,
         visualWidth = 13.5f, refBodyRadius = 0.59f, refSpeed = 0.56f,
     ),
 
     SHIBA_INU_ORANGE(
         "dog_shiba_inu_orange", "오렌지 시바", R.drawable.dog_shiba_inu_orange,
+        portraitRes = R.drawable.dog_shiba_inu_orange_portrait,
         visualWidth = 13.5f, refBodyRadius = 0.59f, refSpeed = 0.56f,
     ),
 
     SIBERIAN_HUSKY(
         "dog_siberian_husky", "시베리안 허스키", R.drawable.dog_siberian_husky,
+        portraitRes = R.drawable.dog_siberian_husky_portrait,
         visualWidth = 16.0f, refBodyRadius = 0.72f, refSpeed = 0.52f,
     ),
 
     POMERANIAN_BLACK_TAN(
         "dog_pomeranian_black_tan", "블랙탄 포메라니안", R.drawable.dog_pomeranian_black_tan,
+        portraitRes = R.drawable.dog_pomeranian_black_tan_portrait,
         visualWidth = 11.5f, refBodyRadius = 0.46f, refSpeed = 0.57f,
     ),
 
     POMERANIAN_BEIGE(
         "dog_pomeranian_beige", "베이지 포메라니안", R.drawable.dog_pomeranian_beige,
+        portraitRes = R.drawable.dog_pomeranian_beige_portrait,
         visualWidth = 11.5f, refBodyRadius = 0.46f, refSpeed = 0.57f,
     ),
 
     POMERANIAN_WHITE(
         "dog_pomeranian_white", "흰색 포메라니안", R.drawable.dog_pomeranian_white,
+        portraitRes = R.drawable.dog_pomeranian_white_portrait,
         visualWidth = 11.5f, refBodyRadius = 0.46f, refSpeed = 0.57f,
     ),
 
     BORDER_COLLIE(
         "dog_border_collie", "보더콜리", R.drawable.dog_border_collie,
+        portraitRes = R.drawable.dog_border_collie_portrait,
         visualWidth = 15.5f, refBodyRadius = 0.68f, refSpeed = 0.59f,
     ),
 
     WELSH_CORGI(
         "dog_welsh_corgi", "웰시코기", R.drawable.dog_welsh_corgi,
+        portraitRes = R.drawable.dog_welsh_corgi_portrait,
         visualWidth = 14.8f, refBodyRadius = 0.65f, refSpeed = 0.54f,
     ),
 
     DACHSHUND_SHORT_BROWN(
         "dog_dachshund_short_brown", "단모 갈색 닥스훈트", R.drawable.dog_dachshund_short_brown,
+        portraitRes = R.drawable.dog_dachshund_short_brown_portrait,
         visualWidth = 16.5f, refBodyRadius = 0.67f, refSpeed = 0.52f,
     ),
 
     DACHSHUND_SHORT_BLACK(
         "dog_dachshund_short_black", "단모 검정 닥스훈트", R.drawable.dog_dachshund_short_black,
+        portraitRes = R.drawable.dog_dachshund_short_black_portrait,
         visualWidth = 16.5f, refBodyRadius = 0.67f, refSpeed = 0.52f,
     ),
 
     DACHSHUND_LONG_BEIGE(
         "dog_dachshund_long_beige", "장모 베이지 닥스훈트", R.drawable.dog_dachshund_long_beige,
+        portraitRes = R.drawable.dog_dachshund_long_beige_portrait,
         visualWidth = 17.0f, refBodyRadius = 0.69f, refSpeed = 0.5f,
     ),
 
     FRENCH_BULLDOG(
         "dog_french_bulldog", "프렌치불독", R.drawable.dog_french_bulldog,
+        portraitRes = R.drawable.dog_french_bulldog_portrait,
         visualWidth = 12.0f, refBodyRadius = 0.55f, refSpeed = 0.47f,
     ),
 
     PUG(
         "dog_pug", "퍼그", R.drawable.dog_pug,
+        portraitRes = R.drawable.dog_pug_portrait,
         visualWidth = 11.5f, refBodyRadius = 0.52f, refSpeed = 0.47f,
     ),
 
     SCHNAUZER(
         "dog_schnauzer", "슈나우저", R.drawable.dog_schnauzer,
+        portraitRes = R.drawable.dog_schnauzer_portrait,
         visualWidth = 12.5f, refBodyRadius = 0.54f, refSpeed = 0.52f,
     );
 

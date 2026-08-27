@@ -82,7 +82,7 @@ fun ChatbotCard(modifier: Modifier = Modifier) {
             Spacer(Modifier.height(9.dp))
 
             Row(verticalAlignment = Alignment.CenterVertically) {
-                DogAvatar(Modifier.size(40.dp))
+                DogAvatar(HomeDemoData.DOG_BREED, Modifier.size(40.dp))
                 Spacer(Modifier.width(10.dp))
 
                 Box(
