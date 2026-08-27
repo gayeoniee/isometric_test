@@ -1,4 +1,4 @@
-package com.daengs.app.ui.dex.compose
+package com.daengs.app.ui.dex
 
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.BlendMode

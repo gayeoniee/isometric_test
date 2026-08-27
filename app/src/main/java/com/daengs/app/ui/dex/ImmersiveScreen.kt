@@ -1,4 +1,4 @@
-package com.daengs.app.ui.dex.compose
+package com.daengs.app.ui.dex
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.LinearEasing
@@ -41,7 +41,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.daengs.app.miniroom.art.rememberAssetImage
-import com.daengs.app.ui.dex.DeviceTilt
 import kotlin.math.roundToInt
 import kotlin.math.sin
 

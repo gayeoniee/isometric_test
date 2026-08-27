@@ -1,246 +1,309 @@
 package com.daengs.app.ui.dex
 
-import android.annotation.SuppressLint
-import android.graphics.Color as AndroidColor
-import android.view.ViewGroup
-import android.webkit.WebResourceRequest
-import android.webkit.WebResourceResponse
-import android.webkit.WebView
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
-import kotlinx.coroutines.delay
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.viewinterop.AndroidView
-import androidx.webkit.WebViewAssetLoader
-import androidx.webkit.WebViewClientCompat
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.daengs.app.miniroom.art.rememberAssetImage
+import com.daengs.app.ui.theme.CreamBg
+import com.daengs.app.ui.theme.DaengPink
+import com.daengs.app.ui.theme.PinkFaint
+import com.daengs.app.ui.theme.TextDark
+import com.daengs.app.ui.theme.TextMuted
 
 // ---------------------------------------------------------------------------
-// 네오 채소 도감 — 저쪽 웹 데모를 그대로 실는다
+// 네오 채소 도감
 //
-// 카드 12장의 홀로그램 포일은 CSS 블렌드 모드(color-dodge · hard-light)와 다중
-// 그라디언트를 포인터 위치로 굴리는 것이다. 네이티브로 옮기면 옮기는 게 아니라
-// **다시 유도하는** 일이 되고, 저쪽이 원화에 맞춰 오래 조정해 둔 세기 값을 처음부터
-// 다시 맞춰야 한다. 그래서 폴더째 실었다.
+// 카드 12장을 모아 두고, 눌러서 크게 보고, 문지르거나 폰을 기울여 홀로그램 포일을
+// 구경한다. No.01 배추만 꾹 누르면 카드 "안으로" 들어간다 ([ImmersiveScreen]).
 //
-// **저쪽 파일은 한 글자도 고치지 않는다.** 저쪽이 갱신하면 통째로 갈아끼울 수 있어야
-// 한다. 필요한 조정은 전부 이 파일에서 한다.
+// ## 어디서 왔나
 //
-// ## 서버가 아니다
+// 원본은 팀 저장소 `SAJOYO/DAENGS_dev` 의 웹 데모(`frontend/public/neo-hologram/`)다.
+// 한동안 그 폴더를 통째로 앱에 싣고 WebView 로 띄웠는데, **앱으로 통일하기로 하고
+// 네이티브로 다시 만들었다.** 웹판은 커밋 3e1bf6c 까지 있으니 필요하면 꺼내 볼 수 있다.
 //
-// [WebViewAssetLoader] 는 APK 안의 `assets/` 를 https 주소로 얹어 주는 **로더**다.
-// `appassets.androidplatform.net` 은 실제로 없는 주소이고, 안드로이드가 네트워크로
-// 나가기 전에 가로챈다. 개발 서버도 포트도 인터넷 권한도 없다 — 비행기 모드에서도
-// 똑같이 돈다.
+// 카드 그림(`assets/neo-hologram/art/`)만 저쪽에서 그대로 가져다 쓴다. 프레임·제목·
+// 기술명·수치가 전부 구워져 있어서, 우리가 만드는 건 **그 위에 얹는 효과뿐**이다.
+// 포일을 어떻게 옮겼는지는 [Foil] 에 적어 뒀다.
 //
-// 그런데 왜 굳이 https 인가. **`file://` 에서는 ES 모듈이 CORS 로 막히기 때문이다.**
-// 저쪽 index.html 이 `<script type="module">` 을 쓰므로, file:// 로 열면 카드가 한
-// 장도 안 뜬다.
+// 화면 톤은 앱을 따른다 — 웹판은 어두운 배경(#0E0B05)이라 방에서 넘어올 때 분위기가
+// 확 바뀌었는데, 네이티브로 온 이유가 그걸 없애는 것이기도 하다.
 // ---------------------------------------------------------------------------
 
-/** 확대 뷰가 열렸는지 확인하는 주기 (ms). */
-private const val VIEWER_POLL_MS = 500L
+/** 도감 배경. 앱 크림색보다 살짝 가라앉혀 카드가 떠 보이게 한다. */
+private val DexBg = Color(0xFFF6E9E3)
 
-/** 자바스크립트 문자열 리터럴로 감싼다. CSS 안의 따옴표·역슬래시를 안전하게 넘긴다. */
-private fun quoteJs(text: String): String =
-    "\"" + text.replace("\\", "\\\\").replace("\"", "\\\"") + "\""
+/** 카드 칸의 세로 비율. 웹판 `.slot .frame { aspect-ratio: 4/5 }` 와 같다. */
+private const val SLOT_RATIO = 1.25f
 
-/** 저쪽 `theme-color`. 로딩 중 흰 화면이 번쩍이지 않게 배경을 미리 맞춘다. */
-private val DexBackground = Color(0xFF0E0B05)
 
-// ---------------------------------------------------------------------------
-// 우리 쪽 조정
-//
-// 저쪽 파일을 안 고치고 얹는 것들이다. 폴더를 통째로 갈아끼워도 이 조정은 살아남는다.
-// ---------------------------------------------------------------------------
 
-/**
- * 포일 세기. 저쪽이 `rarity.css` 에 만들어 둔 손잡이를 쓴다. 1 이 저쪽 기본값이고
- * 낮출수록 차분해진다. **vendor 포일 11종이 전부 이 두 개를 읽는 것**을 확인했다
- * (`gold.css:41` 처럼 `calc(var(--card-opacity) * 0.9 * var(--hc-shine-opacity))`).
- *
- * **opacity 계열만 건드린다.** 저쪽 README 경고 때문이다 — 무늬가 구조인 포일
- * (`mosaic` 의 격자, `metal` 의 세로 결)은 `brightness` 로 누르면 색이 돌아오는 대신
- * 무늬가 같이 뭉개져서, 그 티어를 고른 이유가 없어진다. `hard-light` 포일
- * (`gold` · `metal`)은 blend 가 곱하기 쪽으로 넘어가 탁해진다.
- *
- * No.01 배추만 예외다. 그 카드는 vendor 포일이 아니라 저쪽 자체 이머시브라 이 값을
- * 안 읽는다 — 조정해도 안 변하는 게 정상이다.
- */
-private const val SHINE_OPACITY = "0.72"
-private const val GLARE_OPACITY = "0.72"
-
-/**
- * 폰에서 그리드를 **두 칸**으로.
- *
- * 이게 이번 작업에서 제일 크다. 저쪽 기본값은 `minmax(min(100%, 250px), 1fr)` 인데
- * 폰 뷰포트가 400px 남짓이라 **한 줄에 한 장**이 된다. 카드가 화면 폭을 꽉 채우니
- * 블렌드 레이어 4~5장이 전부 그 크기로 잡히고, 그래서
- * `tile memory limits exceeded` 가 난다.
- *
- * **`align-self: start` 가 꼭 필요하다.** 없으면 칸이 그 행에서 제일 큰 칸 높이로
- * 늘어난다. 저쪽은 슬롯을 `1fr auto` 두 줄로 짜고 그림 자리를 4:5 로 잡아 두는데,
- * 칸이 늘어나면 그 4:5 가 깨져 세로로 길어지고, 카드가 **높이 기준**으로 크기를
- * 잡으므로 (`height:100%` + `aspect-ratio: --ar`) 폭까지 같이 넓어져 칸을 넘친다.
- *
- * 실제로 그렇게 잘렸다. 하필 1행이 배추(No.01)와 페퍼인데, 배추만 "꾹 눌러서
- * 들어가기" 버튼이 있어 칸이 길고, 그래서 옆의 페퍼가 넘쳤다. 비율이 넓은 카드
- * (페퍼·가지·당근·단호박·상추 0.80, 나머지 0.72~0.725)일수록 크게 넘친다.
- * 1열일 때는 옆칸이 없어서 안 생기던 문제다.
- *
- * `minmax(0, 1fr)` 도 같이 필요하다. 그냥 `1fr` 은 칸의 최소 폭이 `auto` 라 내용보다
- * 작아지지 못한다.
- *
- * 두 칸으로 만들면 카드 면적이 **4분의 1** 이 된다. 포일을 제대로 보는 건 어차피
- * 확대 뷰이고 (저쪽 README: "이 데모는 카드를 보라고 만든 것이라 화면을 카드에 다
- * 준다"), 그리드는 모아둔 걸 훑는 자리라 두 칸이 도감답기도 하다.
- */
-private const val GRID_CSS =
-    "#dex{grid-template-columns:repeat(2,minmax(0,1fr))!important}" +
-        "#dex > li{align-self:start}"
-
-/**
- * 화면 밖 카드는 아예 그리지 않는다.
- *
- * `contain-intrinsic-size` 를 같이 줘야 한다 — 없으면 높이가 0 으로 잡혀 스크롤이 튄다.
- */
-private const val OFFSCREEN_CSS =
-    "#dex > li{content-visibility:auto;contain-intrinsic-size:auto 320px}"
-
-/**
- * 확대 뷰가 열려 있는 동안에는 **뒤의 그리드를 아예 안 그린다.**
- *
- * 카드를 확대해 문지를 때가 제일 무겁다 (튐 10.9%, 그리드 스크롤은 1.8%). 화면을 꽉
- * 채운 카드의 블렌드 레이어 4~5장을 손가락이 움직일 때마다 전부 다시 칠하기 때문이다.
- * 그 뒤에 그리드까지 살아 있을 이유가 없다 — 다이얼로그가 덮고 있어 보이지도 않는데
- * 브라우저는 여전히 합성 대상으로 들고 있다.
- */
-private const val VIEWER_CSS =
-    "body:has(dialog[open]) #dex{content-visibility:hidden!important}"
-
-/** 위 조정을 한 장으로 묶은 것. 페이지가 뜬 뒤 넣는다. */
-private val TUNING_CSS =
-    ".stage[data-effect]{--hc-shine-opacity:$SHINE_OPACITY;--hc-glare-opacity:$GLARE_OPACITY}" +
-        GRID_CSS + OFFSCREEN_CSS + VIEWER_CSS
-
-private const val ASSET_ORIGIN = "https://appassets.androidplatform.net"
-private const val DEX_URL = "$ASSET_ORIGIN/assets/neo-hologram/index.html"
-
-/**
- * 도감 화면. [onClose] 는 방으로 돌아갈 때 불린다.
- *
- * 닫는 길이 셋이다 — 안드로이드 뒤로가기 · 페이지 왼쪽 위 `← DAENGS` · 확대 뷰의 ✕.
- * 앞의 둘을 여기서 받는다.
- */
-@SuppressLint("SetJavaScriptEnabled")
 @Composable
 fun CardDexScreen(onClose: () -> Unit, modifier: Modifier = Modifier) {
-    val context = LocalContext.current
+    var opened by remember { mutableStateOf<Int?>(null) }
+    var immersive by remember { mutableStateOf(false) }
 
-    val loader = remember(context) {
-        WebViewAssetLoader.Builder()
-            .addPathHandler("/assets/", WebViewAssetLoader.AssetsPathHandler(context))
-            .build()
-    }
-
-    // 뒤로가기·자이로가 이 인스턴스를 잡고 있어야 해서 밖에 둔다.
-    val webView = remember(context) {
-        WebView(context).apply {
-            layoutParams = ViewGroup.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.MATCH_PARENT,
-            )
-            setBackgroundColor(AndroidColor.parseColor("#0E0B05"))
-            settings.javaScriptEnabled = true
-            // 저쪽이 본 카드를 기억하는 데 쓴다. 없으면 조용히 실패한다.
-            settings.domStorageEnabled = true
-            // 저쪽이 자기 뷰포트를 직접 잡는다. 여기서 겹쳐 잡으면 카드가 작아진다.
-            settings.loadWithOverviewMode = false
-            settings.useWideViewPort = false
-            isVerticalScrollBarEnabled = false
-
-            webViewClient = object : WebViewClientCompat() {
-                override fun shouldInterceptRequest(
-                    view: WebView,
-                    request: WebResourceRequest,
-                ): WebResourceResponse? = loader.shouldInterceptRequest(request.url)
-
-                override fun onPageFinished(view: WebView, url: String) {
-                    // 저쪽 파일을 고치는 대신 스타일 한 장을 얹는다.
-                    // 마지막에 넣으므로 특정도가 같아도 우리 값이 이긴다.
-                    view.evaluateJavascript(
-                        "(function(){var s=document.getElementById('daengs-tuning')||" +
-                            "document.createElement('style');s.id='daengs-tuning';" +
-                            "s.textContent=${quoteJs(TUNING_CSS)};" +
-                            "document.head.appendChild(s)})()",
-                        null,
-                    )
-                }
-
-                override fun shouldOverrideUrlLoading(
-                    view: WebView,
-                    request: WebResourceRequest,
-                ): Boolean {
-                    // 저쪽 껍데기의 `<a class="back" href="/">← DAENGS</a>`.
-                    // 웹에서는 서비스 첫 화면으로 가는 링크인데, 앱에는 그런 페이지가
-                    // 없어서 그대로 두면 빈 화면이 뜬다. 방으로 돌려보낸다.
-                    val url = request.url.toString()
-                    if (url == "$ASSET_ORIGIN/" || url == ASSET_ORIGIN) {
-                        onClose()
-                        return true
-                    }
-                    return false
-                }
-            }
-            loadUrl(DEX_URL)
-        }
-    }
-
-    // 확대 뷰가 열려 있으면 그것만 닫고, 아니면 방으로 나간다.
-    //
-    // 저쪽은 확대 뷰를 `<dialog>` 로 만든다. 안드로이드 뒤로가기는 Esc 로 안 가므로
-    // 저절로 닫히지 않는다. **저쪽 파일을 고치지 않고** 밖에서 닫는다.
     BackHandler {
-        webView.evaluateJavascript(
-            "(function(){var d=document.querySelector('dialog[open]');" +
-                "if(d){d.close();return true}return false})()",
-        ) { result -> if (result != "true") onClose() }
-    }
-
-    // 확대 뷰가 열려 있는가. **자이로를 켤지 끌지가 여기 달렸다.**
-    //
-    // 저쪽은 기울기를 확대한 한 장에만 쓰고 그리드에서는 버린다. 그런데 우리가
-    // 보내는 비용(프로세스를 넘는 evaluateJavascript)은 버려지든 말든 그대로 든다.
-    // 그래서 열려 있을 때만 센서를 문다.
-    //
-    // 저쪽 파일에 신호를 심는 대신 밖에서 확인한다 — 뒤로가기에서 쓰는 것과 같은 수법.
-    // 0.5초면 충분하다. 확대를 연 직후 반 박자 늦게 켜지지만, 그 사이에 폰을 기울이는
-    // 사람은 없다.
-    var viewerOpen by remember { mutableStateOf(false) }
-    LaunchedEffect(webView) {
-        while (true) {
-            webView.evaluateJavascript(
-                "!!document.querySelector('dialog[open]')",
-            ) { result -> viewerOpen = result == "true" }
-            delay(VIEWER_POLL_MS)
+        when {
+            immersive -> immersive = false
+            opened != null -> opened = null
+            else -> onClose()
         }
     }
 
-    // 폰을 기울이면 카드가 따라 기운다. 저쪽이 확대한 한 장에만 적용한다.
-    DeviceTilt(enabled = viewerOpen) { beta, gamma ->
-        webView.evaluateJavascript("window.__neoTilt&&window.__neoTilt($beta,$gamma)", null)
+    if (immersive) {
+        ImmersiveScreen(onClose = { immersive = false })
+        return
     }
 
-    Box(modifier.fillMaxSize().background(DexBackground)) {
-        AndroidView(factory = { webView }, modifier = Modifier.fillMaxSize())
+    Box(modifier.fillMaxSize().background(DexBg)) {
+        DexGrid(
+            onOpen = { opened = it },
+            onClose = onClose,
+            onImmersive = { immersive = true },
+        )
+
+        AnimatedVisibility(
+            visible = opened != null,
+            enter = fadeIn(),
+            exit = fadeOut(),
+        ) {
+            val start = opened ?: 0
+            CardViewer(startIndex = start, onClose = { opened = null })
+        }
     }
 }
+
+// -- 그리드 -----------------------------------------------------------------
+
+@Composable
+private fun DexGrid(onOpen: (Int) -> Unit, onClose: () -> Unit, onImmersive: () -> Unit) {
+    LazyVerticalGrid(
+        // 두 칸. 웹판에서 한 칸이면 카드가 화면을 꽉 채워 무거웠다.
+        columns = GridCells.Fixed(2),
+        modifier = Modifier.fillMaxSize().systemBarsPadding(),
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 32.dp),
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
+        verticalArrangement = Arrangement.spacedBy(20.dp),
+    ) {
+        item(span = { androidx.compose.foundation.lazy.grid.GridItemSpan(2) }) {
+            DexHeader(onClose = onClose)
+        }
+        items(DEX_CARDS) { card ->
+            GridCard(
+                card = card,
+                onOpen = { onOpen(DEX_CARDS.indexOf(card)) },
+                // No.01 배추만 이머시브다. 저쪽도 지금은 한 장뿐이다.
+                onImmersive = if (card.no == 1) onImmersive else null,
+            )
+        }
+    }
+}
+
+@Composable
+private fun DexHeader(onClose: () -> Unit) {
+    Column(Modifier.fillMaxWidth().padding(bottom = 6.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                "← 방으로",
+                color = TextMuted,
+                fontSize = 13.sp,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .clickable(onClick = onClose)
+                    .padding(horizontal = 8.dp, vertical = 6.dp),
+            )
+        }
+        Spacer(Modifier.height(10.dp))
+        Text("채소가 된 네오", color = TextDark, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(4.dp))
+        Text(
+            "${DEX_CARDS.size} / ${DEX_CARDS.size} 수집 · 카드를 눌러 크게 보세요",
+            color = TextMuted,
+            fontSize = 12.sp,
+        )
+        Spacer(Modifier.height(8.dp))
+    }
+}
+
+@Composable
+private fun GridCard(card: DexCard, onOpen: () -> Unit, onImmersive: (() -> Unit)?) {
+    // 그리드에서는 작게 그리므로 절반 크기로 읽는다. 12장을 원본으로 들면 55MB 다.
+    val art = rememberAssetImage(card.art, sample = 2)
+    val rub = rememberRubState(onTap = onOpen, onHold = onImmersive)
+
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        // **카드 높이를 칸마다 똑같이 맞춘다.** 그림 비율이 두 종류라(0.72 와 0.80)
+        // 폭을 맞추면 높이가 제각각이 되어 줄이 어긋난다. 웹판이 "실물 카드 바인더와
+        // 같은 정렬" 이라고 부르는 배치를 그대로 쓴다 — 높이는 같고 폭만 비율만큼
+        // 달라지며, 그림은 한 픽셀도 안 잘린다.
+        BoxWithConstraints(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+            HoloCard(
+                art = art,
+                foil = card.foil,
+                input = rub.input,
+                // 그리드에서는 기울이지 않는다. 열두 장이 한꺼번에 도는 건 산만하다.
+                tilt = false,
+                // 꾹 누르는 동안 차오르는 테두리. **없으면 카드가 멈춘 줄 안다** —
+                // 꾹 누르기는 눌러보기 전엔 알 수가 없다.
+                hold = rub.hold,
+                holdColor = card.accent,
+                // 칸 폭의 4:5. 웹판 `.slot .frame` 과 같은 비율이다.
+                modifier = Modifier
+                    .height(maxWidth * SLOT_RATIO)
+                    // **드래그를 안 먹는다.** 먹으면 카드를 짚고 쓸어내릴 때 목록이
+                    // 안 움직인다.
+                    .rubbable(rub, consume = false),
+            )
+        }
+        Spacer(Modifier.height(8.dp))
+        Text("No. %02d".format(card.no), color = TextMuted, fontSize = 10.sp)
+        Text(card.name, color = TextDark, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+        Text(card.statLine, color = TextMuted, fontSize = 11.sp, textAlign = TextAlign.Center)
+        // **캡션 아래에 둔다.** 카드와 캡션 사이에 끼우면 이 칸만 캡션이 밀려 내려가
+        // 옆 칸과 줄이 어긋난다. 웹판도 캡션 다음이다.
+        if (onImmersive != null) {
+            Spacer(Modifier.height(6.dp))
+            // 꾹 누르기는 발견해야 아는 손짓이라 유일한 길이면 안 된다 (저쪽 주석).
+            Text(
+                "★★★ 꾹 눌러서 들어가기",
+                color = TextDark,
+                fontSize = 10.sp,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(card.accent.copy(alpha = 0.25f))
+                    .clickable(onClick = onImmersive)
+                    .padding(horizontal = 8.dp, vertical = 3.dp),
+            )
+        }
+    }
+}
+
+// -- 확대 뷰 ----------------------------------------------------------------
+
+/**
+ * 카드를 화면 가득 보는 뷰.
+ *
+ * 저쪽이 정한 손짓을 그대로 따른다 — **문지르면 포일 구경**, 좌우 버튼으로 넘기기.
+ * 쓸어서 넘기기는 저쪽이 해보고 버렸다 (포일을 구경하다 보면 손이 저절로 빨라져서
+ * 속도로는 못 가른다).
+ */
+@Composable
+private fun CardViewer(startIndex: Int, onClose: () -> Unit) {
+    var index by remember { mutableIntStateOf(startIndex) }
+    val card = DEX_CARDS[index]
+    // 확대 뷰는 한 장뿐이라 원본 해상도로 읽는다.
+    val art = rememberAssetImage(card.art)
+    val rub = rememberRubState()
+
+    // 폰을 기울이면 카드가 따라 기운다. **확대 뷰에서만** 켠다 — 그리드에서 열두 장이
+    // 한꺼번에 도는 건 산만하고 비싸다.
+    val tiltTracker = remember { TiltTracker() }
+    DeviceTilt { beta, gamma -> tiltTracker.feed(beta, gamma) }
+    // 카드를 넘기면 지금 자세가 다시 정면이 된다
+    LaunchedEffect(index) { tiltTracker.reset() }
+
+    // **손가락이 이긴다.** 두 입력이 같은 카드를 두고 매 프레임 싸우면 화면이 떤다.
+    val input = if (rub.input.intensity > 0f) rub.input else (tiltTracker.input ?: rub.input)
+
+    Box(
+        Modifier
+            .fillMaxSize()
+            .background(Color(0xE8241C1A))
+            // 카드 밖을 누르면 닫힌다
+            .clickable(indication = null, interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }) { onClose() },
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(
+            Modifier.systemBarsPadding().padding(horizontal = 12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            HoloCard(
+                art = art,
+                foil = card.foil,
+                input = input,
+                tilt = true,
+                modifier = Modifier.fillMaxWidth().rubbable(rub),
+            )
+            Spacer(Modifier.height(14.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                NavButton("‹") { index = (index - 1 + DEX_CARDS.size) % DEX_CARDS.size }
+                Spacer(Modifier.size(18.dp))
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(card.name, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                    Text(card.statLine, color = Color(0xFFD9C9C3), fontSize = 12.sp)
+                }
+                Spacer(Modifier.size(18.dp))
+                NavButton("›") { index = (index + 1) % DEX_CARDS.size }
+            }
+        }
+
+        Text(
+            "✕",
+            color = Color.White,
+            fontSize = 18.sp,
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .systemBarsPadding()
+                .padding(16.dp)
+                .clip(CircleShape)
+                .background(Color(0x33FFFFFF))
+                .clickable(onClick = onClose)
+                .padding(horizontal = 12.dp, vertical = 6.dp),
+        )
+    }
+}
+
+@Composable
+private fun NavButton(label: String, onClick: () -> Unit) {
+    Text(
+        label,
+        color = TextDark,
+        fontSize = 20.sp,
+        modifier = Modifier
+            .clip(CircleShape)
+            .background(PinkFaint)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 4.dp),
+    )
+}
+
+@Suppress("unused")
+private val unusedPalette = listOf(CreamBg, DaengPink)

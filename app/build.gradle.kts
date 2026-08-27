@@ -57,9 +57,6 @@ dependencies {
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
-    // 도감 WebView 가 앱 안의 파일을 https 오리진으로 읽게 해준다 (WebViewAssetLoader).
-    // 서버가 아니라 로더다 — 인터넷 권한은 필요 없다.
-    implementation(libs.androidx.webkit)
     testImplementation(libs.junit)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
